@@ -6,14 +6,14 @@ Android-приложение, в котором реальные шаги про
 
 Лондон → Суэц: реальные шаги, движение по маршруту, первое событие дневника и сохранение прогресса после перезапуска. Без аккаунта, обязательного сервера и постоянного GPS.
 
-Сейчас создан стартовый экран на Compose. [Первая сборка APK и Android Lint прошли успешно](https://github.com/boxowl/around-the-world-80-days/actions/runs/34763069477); запуск на устройстве ещё не проверен. Учёт шагов, игровой расчёт и сохранение ещё не реализованы. Health Connect и необходимость отдельного источника шагов предстоит проверить на реальном телефоне.
+Сейчас создан стартовый экран на Compose. [Первая сборка APK и Android Lint прошли успешно](https://github.com/boxowl/around-the-world-80-days/actions/runs/34763069477); запуск на устройстве ещё не проверен. В ветке P02 добавлена диагностика Health Connect: доступ, разрешение READ_STEPS, агрегаты за сегодня и семь календарных дней, обновление и обработка ошибок. Игровой расчёт и сохранение ещё не реализованы. Необходимость отдельного источника шагов предстоит проверить на реальном телефоне; [протокол испытаний](docs/HEALTH_CONNECT_TEST.md).
 
 ## Сборка и запуск
 
 Требуются JDK 17 или 21, Android SDK Platform 36 и Build Tools 35.0.0. Установите их через Android Studio/SDK Manager. Укажите путь к SDK в `local.properties` (`sdk.dir=/абсолютный/путь/к/sdk`) либо задайте `ANDROID_HOME`.
 
 ```sh
-./gradlew assembleDebug lintDebug
+./gradlew assembleDebug testDebugUnitTest lintDebug
 # После подключения устройства с разрешённой USB-отладкой:
 ./gradlew installDebug
 ```
@@ -27,7 +27,7 @@ GitHub Actions собирает APK и запускает Android Lint на push
 - Kotlin 2.2.21, Compose Compiler той же версии, Compose BOM 2025.10.01.
 - Android Gradle Plugin 8.13.2, Gradle Wrapper 8.13.
 - Android 9+ (minSdk 28), compileSdk/targetSdk 36; applicationId пока предварительный.
-- Room и Health Connect запланированы, зависимости пока не добавлены.
+- Health Connect 1.1.0; только чтение шагов на переднем плане. Room пока не подключён.
 
 Выбор AGP/Gradle основан на [таблице совместимости Android](https://developer.android.com/build/releases/agp-8-13-0-release-notes), подключение компилятора — на [инструкции Compose](https://developer.android.com/develop/ui/compose/setup-compose-dependencies-and-compiler).
 

@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -25,6 +27,8 @@ import java.time.format.DateTimeFormatter
 fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
     val state by model.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val density = LocalDensity.current
+    var previousHeight by remember { mutableStateOf(0.dp) }
     val owner = LocalLifecycleOwner.current
     var actionError by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -45,7 +49,13 @@ fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
         catch (_: ActivityNotFoundException) { actionError = true }
         catch (_: SecurityException) { actionError = true }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier = Modifier.heightIn(min = if (state == DiagnosticState.Loading) previousHeight else 0.dp)
+            .onSizeChanged { size ->
+                if (state != DiagnosticState.Loading) previousHeight = with(density) { size.height.toDp() }
+            },
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Text("Шаги · проверка подключения", style = MaterialTheme.typography.titleLarge)
         Text("Читаем только число шагов. Данные остаются на телефоне; в этой версии они ещё не двигают героя и не сохраняются приложением.")
         when (val current = state) {

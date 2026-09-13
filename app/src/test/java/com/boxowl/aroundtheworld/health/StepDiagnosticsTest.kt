@@ -84,4 +84,26 @@ class StepDiagnosticsTest {
         assertEquals(1, fake.windows.size)
         assertEquals(Instant.parse("2026-09-06T21:00:00Z"), fake.windows.single().start)
     }
+    @Test fun revokedPermissionAfterReadingDiscardsSnapshot() = runBlocking {
+        val gateway = object : StepsGateway {
+            var checks = 0
+            override fun availability() = Availability.AVAILABLE
+            override suspend fun hasPermission() = ++checks == 1
+            override suspend fun aggregate(window: ReadWindow) = StepTotal(100)
+        }
+        assertEquals(DiagnosticState.PermissionRequired, StepDiagnostics(gateway).read(now, zone))
+    }
+    @Test fun secondReadFailureDiscardsPartialSnapshot() = runBlocking {
+        val gateway = object : StepsGateway {
+            var reads = 0
+            override fun availability() = Availability.AVAILABLE
+            override suspend fun hasPermission() = true
+            override suspend fun aggregate(window: ReadWindow): StepTotal {
+                if (++reads == 2) throw IllegalStateException("Provider unavailable")
+                return StepTotal(100)
+            }
+        }
+        assertEquals(DiagnosticState.ReadError, StepDiagnostics(gateway).read(now, zone))
+    }
+
 }

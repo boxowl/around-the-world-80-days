@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Вокруг света за 80 дней</string>
+    <string name="atlas_label">АТЛАС ПУТЕШЕСТВЕННИКА</string>
+    <string name="journey_title">Вокруг света\nза 80 дней</string>
+    <string name="journey_subtitle">Большое путешествие начинается с маленького шага.</string>
+    <string name="first_leg">ПЕРВЫЙ ЭТАП</string>
+    <string name="route">Лондон → Суэц</string>
+    <string name="departure">Экспедиция ещё не началась</string>
+    <string name="steps_status">Шаги пока не подключены</string>
+    <string name="steps_description">Следующий этап разработки — подключить реальные шаги с вашего телефона и проверить их учёт.</string>
+    <string name="journal_status">Дневник ждёт первой записи</string>
+    <string name="journal_description">По мере путешествия здесь появятся истории городов и отметки о пройденном пути.</string>
+</resources>

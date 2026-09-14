@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>P03 · Три варианта Лондона</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, sans-serif; background: #e7e5df; color: #152a35; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .page { max-width: 1440px; margin: auto; padding: 24px; }
+    .intro { max-width: 900px; margin: 0 auto 24px; }
+    h1 { font: 700 clamp(26px, 4vw, 42px)/1.12 Georgia, serif; margin: 0 0 8px; }
+    .intro p { margin: 0; line-height: 1.5; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 18px 0; }
+    .toolbar label { font-size: 14px; font-weight: 700; }
+    .toolbar select { font: inherit; padding: 8px 12px; border: 1px solid #62727a; border-radius: 8px; background: white; color: #132b36; }
+    .note { font-size: 13px; color: #3a525d; }
+    .gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+    .variant { min-width: 0; }
+    .variant h2 { margin: 0 0 10px; font: 700 18px/1.25 system-ui, sans-serif; }
+    .phone-shell { overflow: auto; padding: 10px 0 16px; }
+    .phone { width: 360px; height: 640px; max-width: none; margin: auto; overflow: hidden; border-radius: 27px; box-shadow: 0 16px 40px #10273530, 0 0 0 1px #26394450; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); position: relative; }
+    .phone.tall { width: 412px; height: 915px; }
+    .status { height: 25px; padding: 5px 23px 0; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; flex: none; }
+    .app-head { height: 50px; padding: 4px 17px 7px; flex: none; display: flex; align-items: center; justify-content: space-between; }
+    .brand { font: 700 18px/1.05 Georgia, serif; letter-spacing: -.02em; }
+    .head-mark { font-size: 11px; font-weight: 800; padding: 6px 9px; border: 1px solid currentColor; border-radius: 99px; }
+    .scene { position: relative; height: 232px; flex: none; overflow: hidden; background: var(--scene); }
+    .scene svg { display: block; width: 100%; height: 100%; }
+    .scene-caption { position: absolute; left: 14px; bottom: 12px; z-index: 1; padding: 7px 10px; background: var(--caption); color: var(--caption-text); border-radius: 5px; box-shadow: 0 2px 8px #14283525; font-size: 12px; font-weight: 800; letter-spacing: .02em; }
+    .content { padding: 12px 15px 8px; flex: 1 1 auto; min-height: 0; overflow: auto; }
+    .eyebrow { display: flex; align-items: center; gap: 7px; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; font-weight: 900; color: var(--accent); }
+    .demo { display: inline-block; background: var(--demo); color: var(--demo-text); padding: 3px 6px; border-radius: 4px; font-size: 10px; letter-spacing: .03em; text-transform: uppercase; }
+    .route { margin: 7px 0 10px; font: 700 25px/1.12 Georgia, serif; letter-spacing: -.025em; }
+    .route .arrow { color: var(--accent); font-family: system-ui, sans-serif; font-size: .75em; }
+    .progress { height: 6px; background: var(--track); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+    .progress i { display: block; width: 56%; height: 100%; background: var(--accent); border-radius: inherit; }
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .metric { min-width: 0; padding: 10px 10px 9px; background: var(--card); border: 1px solid var(--card-line); border-radius: var(--card-radius); }
+    .metric small { display: block; font-size: 11px; line-height: 1.2; font-weight: 700; color: var(--muted); }
+    .metric strong { display: block; margin-top: 3px; font: 800 22px/1.05 system-ui, sans-serif; letter-spacing: -.045em; white-space: nowrap; }
+    .metric em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: 0; }
+    .next { margin: 8px 0 0; font-size: 12px; line-height: 1.25; font-weight: 700; color: var(--muted); }
+    .nav { height: 60px; flex: none; display: grid; grid-template-columns: repeat(4,1fr); background: var(--nav); border-top: 1px solid var(--nav-line); }
+    .nav button { min-width: 0; padding: 5px 2px 4px; border: 0; background: transparent; color: var(--nav-muted); font: 700 10px/1.08 system-ui, sans-serif; cursor: pointer; }
+    .nav button[aria-current] { color: var(--accent); }
+    .nav svg { display: block; width: 19px; height: 19px; margin: 0 auto 3px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .book { --paper:#f4ebd8; --ink:#142e3a; --accent:#a4412c; --muted:#334c56; --card:#fffaf0; --card-line:#cbbda5; --card-radius:4px; --track:#d8c9af; --nav:#f6efdf; --nav-line:#c7b99f; --nav-muted:#405560; --scene:#a5aebb; --caption:#fff6e6; --caption-text:#173543; --demo:#223c4a; --demo-text:#fff; }
+    .poster { --paper:#f2dfbd; --ink:#193949; --accent:#a63c25; --muted:#294654; --card:#fbe9c8; --card-line:#183b4d; --card-radius:0; --track:#ccaa7a; --nav:#173e50; --nav-line:#173e50; --nav-muted:#e5e7dc; --scene:#d58857; --caption:#173e50; --caption-text:#fff3d8; --demo:#173e50; --demo-text:#fff; }
+    .poster .brand, .poster .route { font-family: Georgia, serif; text-transform: uppercase; letter-spacing: -.035em; }
+    .poster .head-mark { border-radius: 0; }
+    .poster .scene-caption { border-radius: 0; text-transform: uppercase; letter-spacing: .12em; }
+    .poster .metric { border-width: 2px; }
+    .poster .nav button[aria-current] { color: #ffcd91; }
+    .diorama { --paper:#eaf0e8; --ink:#183b40; --accent:#a24830; --muted:#35545a; --card:#fffdf4; --card-line:#c5d1c7; --card-radius:15px; --track:#c8d7cd; --nav:#fbfff8; --nav-line:#c4d3c8; --nav-muted:#426169; --scene:#8aaabb; --caption:#f9fff1; --caption-text:#193e40; --demo:#244850; --demo-text:#fff; }
+    .diorama .scene-caption { border-radius: 99px; }
+    .diorama .metric { box-shadow: 0 3px 0 #bbccc1; }
+    .phone.tall .scene { height: 340px; }
+    .phone.tall .content { padding: 20px 20px 12px; }
+    .phone.tall .route { margin: 11px 0 17px; font-size: 31px; }
+    .phone.tall .metric { padding: 17px 14px; }
+    .phone.tall .metric strong { font-size: 27px; }
+    .phone.tall .nav { height: 74px; }
+    .large .app-head { height: 64px; }
+    .large .brand { font-size: 23px; }
+    .large .scene { height: 145px; }
+    .large .phone.tall .scene { height: 250px; }
+    .large .scene-caption { font-size: 16px; }
+    .large .eyebrow { font-size: 17px; }
+    .large .route { font-size: 39px; }
+    .large .metrics { grid-template-columns: 1fr; }
+    .large .metric { padding: 7px 10px; }
+    .large .metric small { font-size: 18px; }
+    .large .metric strong { font-size: 30px; }
+    .large .metric em { font-size: 16px; }
+    .large .next { font-size: 17px; }
+    .large .nav { height: 91px; }
+    .large .nav button { font-size: 13px; overflow-wrap: anywhere; }
+    .large .nav svg { width: 24px; height: 24px; }
+    .large .phone.tall .nav { height: 91px; }
+    .scene .smoke { animation: drift 7s ease-in-out infinite alternate; }
+    @keyframes drift { from { transform: translateX(0); opacity: .65; } to { transform: translateX(8px); opacity: .9; } }
+    .reduced .scene .smoke { animation: none; }
+    @media (prefers-reduced-motion: reduce) { .scene .smoke { animation: none; } }
+    @media (max-width: 1150px) { .gallery { grid-template-columns: 1fr; max-width: 500px; margin: auto; } .variant { margin-bottom: 18px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="intro">
+      <h1>Лондон: три визуальных направления</h1>
+      <p>Один главный экран, одна композиция и одни демонстрационные данные. Выбор стиля открыт. Сцены — оригинальные кодовые иллюстрации для сравнения; после выбора потребуется финальная растровая отрисовка.</p>
+      <div class="toolbar" aria-label="Параметры просмотра">
+        <label>Телефон <select id="size"><option value="compact">360 × 640 dp</option><option value="tall">412 × 915 dp</option></select></label>
+        <label>Шрифт <select id="font"><option value="normal">Обычный</option><option value="large">Крупный</option></select></label>
+        <label>Анимация <select id="motion"><option value="normal">Лёгкая</option><option value="reduced">Уменьшена</option></select></label>
+        <span class="note">Все числа на экранах — демо; данные не подключены.</span>
+      </div>
+    </div>
+    <section class="gallery" aria-label="Три макета Лондона">
+      <article class="variant"><h2>01 · Книжная иллюстрация</h2><div class="phone-shell"><div class="phone book" data-variant="book"></div></div></article>
+      <article class="variant"><h2>02 · Винтажный туристический плакат</h2><div class="phone-shell"><div class="phone poster" data-variant="poster"></div></div></article>
+      <article class="variant"><h2>03 · Уютная игровая диорама</h2><div class="phone-shell"><div class="phone diorama" data-variant="diorama"></div></div></article>
+    </section>
+  </main>
+  <script>
+    const scene = (kind) => `
+      <svg viewBox="0 0 360 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Лондон: мокрая мостовая, фонари и паровой поезд у вокзала">
+        <defs>
+          <linearGradient id="sky-${kind}" x2="0" y2="1"><stop stop-color="${kind==='poster'?'#d06d43':kind==='diorama'?'#94b8ba':'#8fa3b6'}"/><stop offset="1" stop-color="${kind==='poster'?'#f0b16b':kind==='diorama'?'#d3d1ae':'#d8c7a7'}"/></linearGradient>
+          <linearGradient id="ground-${kind}" x2="0" y2="1"><stop stop-color="${kind==='poster'?'#2d5060':kind==='diorama'?'#647d78':'#687986'}"/><stop offset="1" stop-color="${kind==='poster'?'#122f40':kind==='diorama'?'#334e54':'#253e4e'}"/></linearGradient>
+          <linearGradient id="train-${kind}" x2="0" y2="1"><stop stop-color="${kind==='poster'?'#213d4b':kind==='diorama'?'#294a4a':'#263d4c'}"/><stop offset="1" stop-color="#102b36"/></linearGradient>
+          <filter id="shadow-${kind}"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#122a32" flood-opacity=".4"/></filter>
+          <pattern id="grain-${kind}" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".5" fill="#fff" opacity=".25"/><circle cx="6" cy="5" r=".45" fill="#183d4d" opacity=".18"/></pattern>
+        </defs>
+        <rect width="360" height="250" fill="url(#sky-${kind})"/>
+        ${kind==='poster'?'<circle cx="279" cy="73" r="54" fill="#f9ca81" opacity=".85"/><path d="M279 4v22M279 122v22M210 73h22M326 73h22M228 22l16 16M316 108l16 16M229 123l16-16M315 38l17-17" stroke="#f8cf91" stroke-width="4" opacity=".6"/>':''}
+        <path d="M0 113h39V67h31v46h16V83h27v30h34V71h21v42h28V90h20v23h34V69h25v44h26V86h22v27h37v137H0z" fill="${kind==='poster'?'#a84e3e':kind==='diorama'?'#809592':'#87909a'}" opacity=".65"/>
+        <path d="M0 133h91V58h12V48h65V58h13v75h25v-29h9V89h77v15h10v29h58v66H0z" fill="${kind==='poster'?'#183c4c':kind==='diorama'?'#556a6c':'#4f6674'}" stroke="${kind==='book'?'#253f4d':'none'}" stroke-width="1.2"/>
+        <path d="M93 57l37-24 39 24M213 88l40-30 40 30" fill="none" stroke="${kind==='poster'?'#f0b16b':'#263e47'}" stroke-width="${kind==='poster'?5:3}"/>
+        <circle cx="130" cy="75" r="13" fill="${kind==='poster'?'#eab66e':'#c9b697'}" stroke="#253c47" stroke-width="2"/><path d="M130 63v12l7 4" stroke="#253c47" stroke-width="2" fill="none"/>
+        <g fill="${kind==='poster'?'#e6a865':'#d9bd88'}"><rect x="104" y="99" width="12" height="19"/><rect x="123" y="99" width="12" height="19"/><rect x="144" y="99" width="12" height="19"/><rect x="227" y="99" width="11" height="20"/><rect x="246" y="99" width="11" height="20"/><rect x="265" y="99" width="11" height="20"/></g>
+        <path d="M0 157Q72 149 142 158t218-3v95H0z" fill="url(#ground-${kind})"/>
+        <path d="M0 168Q172 155 360 165M0 194Q177 178 360 188M0 227Q175 210 360 218M47 165L3 250M108 162L80 250M172 164L159 250M235 163L244 250M300 164L329 250" stroke="${kind==='poster'?'#90a8a2':'#c1b8a4'}" stroke-width="${kind==='poster'?2:1}" opacity=".5" fill="none"/>
+        <g class="smoke" fill="${kind==='poster'?'#f3c38d':'#e4ded1'}" opacity=".7"><ellipse cx="212" cy="74" rx="17" ry="9"/><ellipse cx="226" cy="64" rx="16" ry="10"/><ellipse cx="243" cy="51" rx="20" ry="9"/><ellipse cx="259" cy="40" rx="22" ry="10"/></g>
+        <g filter="${kind==='diorama'?`url(#shadow-${kind})`:'none'}">
+          <path d="M151 148h169v25H151z" fill="url(#train-${kind})" stroke="${kind==='book'?'#203947':'none'}" stroke-width="2"/>
+          <path d="M166 147v-25h20l10 25M213 147v-37h69l14 37" fill="url(#train-${kind})" stroke="${kind==='book'?'#203947':'none'}" stroke-width="2"/>
+          <rect x="221" y="117" width="23" height="19" fill="#d4ad70"/><rect x="251" y="117" width="23" height="19" fill="#d4ad70"/><rect x="166" y="151" width="126" height="3" fill="#b96d4a"/>
+          <circle cx="181" cy="171" r="12" fill="#142f39" stroke="#c9a86f" stroke-width="4"/><circle cx="237" cy="171" r="12" fill="#142f39" stroke="#c9a86f" stroke-width="4"/><circle cx="283" cy="171" r="12" fill="#142f39" stroke="#c9a86f" stroke-width="4"/>
+          <path d="M146 175h185" stroke="#d5b581" stroke-width="4"/>
+        </g>
+        <g stroke="#203a43" stroke-width="4" fill="none"><path d="M42 74v99M55 76v95M332 94v79"/><path d="M36 75q7-13 13 0M49 75q7-13 13 0M326 95q7-13 13 0"/></g>
+        <g fill="#f4cf83"><circle cx="42" cy="76" r="6"/><circle cx="55" cy="76" r="6"/><circle cx="332" cy="96" r="6"/></g>
+        <g fill="#f2d5a2" opacity=".35"><ellipse cx="43" cy="197" rx="6" ry="21"/><ellipse cx="55" cy="201" rx="5" ry="17"/><ellipse cx="333" cy="194" rx="7" ry="20"/><path d="M221 185l12 62h-8l-12-62z"/></g>
+        ${kind==='book'?'<rect width="360" height="250" fill="url(#grain-book)" opacity=".55"/><path d="M3 4h354v242H3z" stroke="#ece0c9" stroke-width="6" fill="none"/>':''}
+        ${kind==='poster'?'<path d="M0 2h360M0 247h360" stroke="#f3d9ab" stroke-width="5"/>':''}
+        ${kind==='diorama'?'<path d="M0 240q180-18 360 0v10H0" fill="#243e43" opacity=".55"/>':''}
+      </svg>`;
+    const icons = [
+      '<path d="M3 17l5-10 5 5 4-8 4 13H3z"/><path d="M4 20h16"/>',
+      '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/>',
+      '<path d="M4 4h7a3 3 0 0 1 3 3v13H7a3 3 0 0 0-3 1V4zm10 3a3 3 0 0 1 3-3h3v17a3 3 0 0 0-3-1h-3"/>',
+      '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="12" r="4"/><path d="M7 18h10"/>'
+    ];
+    const labels = ['Путешествие','Карта','Дневник','Паспорт'];
+    document.querySelectorAll('.phone').forEach(phone => {
+      const kind = phone.dataset.variant;
+      phone.innerHTML = `<div class="status"><span>9:41</span><span>▰ ▰ ▰</span></div><header class="app-head"><div class="brand">Вокруг света<br>за 80 дней</div><span class="head-mark">ДЕНЬ 01 · ДЕМО</span></header><div class="scene">${scene(kind)}<span class="scene-caption">Лондон · отправление</span></div><div class="content"><div class="eyebrow"><span class="demo">Демо</span> Первая глава</div><h3 class="route">Лондон <span class="arrow">→</span> Дувр</h3><div class="progress" role="img" aria-label="Демонстрация: 56 процентов пути до Дувра"></div><div class="metrics"><div class="metric"><small>Шаги сегодня · демо</small><strong>2 240 <em>шагов</em></strong></div><div class="metric"><small>До остановки · демо</small><strong>1 760 <em>шагов</em></strong></div></div><p class="next">Следующая цель: белые скалы Дувра</p></div><nav class="nav" aria-label="Нижняя навигация">${labels.map((label,i)=>`<button type="button" ${i===0?'aria-current="page"':''} aria-label="${label}"><svg viewBox="0 0 24 24" aria-hidden="true">${icons[i]}</svg>${label.replace('Путешествие','Путеше<wbr>ствие')}</button>`).join('')}</nav>`;
+    });
+    document.getElementById('size').addEventListener('change', e => document.querySelectorAll('.phone').forEach(p => p.classList.toggle('tall',e.target.value==='tall')));
+    document.getElementById('font').addEventListener('change', e => document.body.classList.toggle('large',e.target.value==='large'));
+    document.getElementById('motion').addEventListener('change', e => document.body.classList.toggle('reduced',e.target.value==='reduced'));
+  </script>
+</body>
+</html>

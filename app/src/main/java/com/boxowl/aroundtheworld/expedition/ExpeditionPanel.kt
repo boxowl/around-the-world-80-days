@@ -12,10 +12,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -107,34 +108,24 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                 LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
                 val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
                 var page by rememberSaveable { mutableStateOf("journey") }
-                val largeFont = LocalConfiguration.current.fontScale >= 1.3f
-                val tabs = listOf("journey" to "Путь", "diary" to "Дневник", "health" to "Шаги и доступ")
-                if (largeFont) {
-                    Column {
+                val tabsRequester = remember { BringIntoViewRequester() }
+                val tabs = listOf("journey" to "Путь", "map" to "Карта", "diary" to "Дневник", "health" to "Шаги и доступ")
+                LaunchedEffect(page) { tabsRequester.bringIntoView() }
+                Column(Modifier.bringIntoViewRequester(tabsRequester)) {
+                    tabs.chunked(2).forEach { row ->
                         Row(Modifier.fillMaxWidth()) {
-                            tabs.take(2).forEach { (id, label) ->
-                                TextButton(onClick = { page = id }, modifier = Modifier.weight(1f)) {
-                                    Text(label, fontWeight = if (page == id) FontWeight.Bold else FontWeight.Normal,
-                                        textAlign = TextAlign.Center)
-                                }
-                            }
-                        }
-                        TextButton(onClick = { page = "health" }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Шаги и доступ", fontWeight = if (page == "health") FontWeight.Bold else FontWeight.Normal)
-                        }
-                    }
-                } else {
-                    Row(Modifier.fillMaxWidth()) {
-                        tabs.forEach { (id, label) ->
+                            row.forEach { (id, label) ->
                             TextButton(onClick = { page = id }, modifier = Modifier.weight(1f)) {
                                 Text(label, fontWeight = if (page == id) FontWeight.Bold else FontWeight.Normal,
                                     textAlign = TextAlign.Center, maxLines = 2)
+                            }
                             }
                         }
                     }
                 }
                 when (page) {
                     "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, model::refresh)
+                    "map" -> FirstLegMap(expedition, onOpenDiary = { page = "diary" })
                     "diary" -> {
                         Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
                         expedition.stops.filter { it.id in expedition.unlocked }.forEach {

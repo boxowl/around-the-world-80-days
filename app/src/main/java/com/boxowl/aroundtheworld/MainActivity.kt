@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.boxowl.aroundtheworld.health.DiagnosticsPanel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,7 +25,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Preview(showBackground = true)
 @Composable
 private fun ExpeditionScreen() {
     MaterialTheme(colorScheme = lightColorScheme(
@@ -54,8 +53,7 @@ private fun ExpeditionScreen() {
                     Text(stringResource(R.string.departure))
                 }
             }
-            Text(stringResource(R.string.steps_status), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.steps_description))
+            DiagnosticsPanel()
             HorizontalDivider()
             Text(stringResource(R.string.journal_status), style = MaterialTheme.typography.titleMedium,
                 fontFamily = FontFamily.Serif)

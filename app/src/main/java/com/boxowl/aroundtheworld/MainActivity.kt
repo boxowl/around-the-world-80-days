@@ -12,10 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import com.boxowl.aroundtheworld.health.DiagnosticsPanel
 import com.boxowl.aroundtheworld.expedition.ExpeditionPanel
 
 class MainActivity : ComponentActivity() {
@@ -37,18 +34,10 @@ private fun ExpeditionScreen() {
     )) {
         Column(
             Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-                .safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
+                .safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Text(stringResource(R.string.atlas_label), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary)
-            Text(stringResource(R.string.journey_title), style = MaterialTheme.typography.displaySmall,
-                fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onBackground)
-            Text(stringResource(R.string.journey_subtitle), color = MaterialTheme.colorScheme.onBackground)
             ExpeditionPanel()
-            HorizontalDivider()
-            DiagnosticsPanel()
-            HorizontalDivider()
 
         }
     }

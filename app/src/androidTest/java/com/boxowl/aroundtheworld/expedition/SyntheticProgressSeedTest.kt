@@ -17,7 +17,8 @@ class SyntheticProgressSeedTest {
     @Test fun seedVisibleProgressForManualEmulatorCheck() = runBlocking {
         val arguments = InstrumentationRegistry.getArguments()
         assumeTrue("Manual emulator-only fixture", arguments.getString("syntheticSeed") == "allow" &&
-            (Build.FINGERPRINT.contains("generic") || Build.FINGERPRINT.contains("emulator")))
+            (Build.FINGERPRINT.contains("generic") || Build.FINGERPRINT.contains("emulator") ||
+                Build.PRODUCT.startsWith("sdk_")))
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val repo = ExpeditionRepository(ExpeditionDatabase.get(context), ExpeditionStore(context))
         val existing = repo.load()

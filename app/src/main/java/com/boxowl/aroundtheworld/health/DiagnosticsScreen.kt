@@ -90,7 +90,7 @@ fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
         }
         OutlinedButton(onClick = { actionError = false; model.refresh() }, enabled = state != DiagnosticState.Loading) { Text("Обновить") }
         if (state != DiagnosticState.Unavailable && state != DiagnosticState.UpdateRequired && state != DiagnosticState.Loading) {
-            TextButton(onClick = { open(HealthConnectClient.getHealthConnectManageDataIntent(context)) }) { Text("Настройки Health Connect") }
+            TextButton(onClick = { open(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)) }) { Text("Настройки Health Connect") }
         }
         TextButton(onClick = { open(Intent(context, PermissionsRationaleActivity::class.java)) }) { Text("Как используются данные") }
         if (actionError) Text("Не удалось открыть системный экран. Откройте Health Connect через настройки телефона.", color = MaterialTheme.colorScheme.error)

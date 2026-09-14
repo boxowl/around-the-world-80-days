@@ -22,22 +22,53 @@ func scene(_ t:Theme,_ x:CGFloat,_ y:CGFloat,_ w:CGFloat,_ h:CGFloat) {
  if t.flat {dot(X(277),Y(70),52*s,c(0xf9ca81))}
  for (bx,bw,bh) in [(0,39,70),(44,27,95),(83,21,81),(318,28,90)] {rect(X(CGFloat(bx)),Y(CGFloat(145-bh)),CGFloat(bw)*s,CGFloat(bh)*k,c(t.building,0.5))}
  rect(X(90),Y(56),90*s,101*k,c(t.building)); poly([NSPoint(x:X(90),y:Y(56)),NSPoint(x:X(135),y:Y(30)),NSPoint(x:X(180),y:Y(56))],c(t.building)); rect(X(210),Y(91),92*s,67*k,c(t.building)); poly([NSPoint(x:X(207),y:Y(91)),NSPoint(x:X(256),y:Y(62)),NSPoint(x:X(305),y:Y(91))],c(t.building))
+ if t.name == "diorama" {
+  poly([NSPoint(x:X(180),y:Y(56)),NSPoint(x:X(197),y:Y(45)),NSPoint(x:X(197),y:Y(153)),NSPoint(x:X(180),y:Y(157))],c(0x364f56))
+  poly([NSPoint(x:X(90),y:Y(56)),NSPoint(x:X(135),y:Y(30)),NSPoint(x:X(197),y:Y(45)),NSPoint(x:X(180),y:Y(56))],c(0xb6c6ba))
+  poly([NSPoint(x:X(302),y:Y(91)),NSPoint(x:X(317),y:Y(81)),NSPoint(x:X(317),y:Y(157)),NSPoint(x:X(302),y:Y(158))],c(0x344e54))
+  poly([NSPoint(x:X(207),y:Y(91)),NSPoint(x:X(256),y:Y(62)),NSPoint(x:X(317),y:Y(81)),NSPoint(x:X(302),y:Y(91))],c(0xa8bcb5))
+  rect(X(88),Y(154),110*s,5*k,c(0xd6cfab),2*s);rect(X(207),Y(153),110*s,5*k,c(0xd6cfab),2*s)
+ }
  dot(X(135),Y(73),12*s,c(0xc9b697)); dot(X(135),Y(73),9*s,c(t.building)); line([NSPoint(x:X(135),y:Y(72)),NSPoint(x:X(135),y:Y(65)),NSPoint(x:X(141),y:Y(72))],c(0xf3d5a3),1.3*s)
  for wx in [105,126,148,224,246,268] {rect(X(CGFloat(wx)),Y(102),11*s,18*k,c(t.flat ? 0xe6a865:0xd9bd88))}
+ if t.name == "book" {
+  let ink=c(0x294656,0.7)
+  line([NSPoint(x:X(90),y:Y(56)),NSPoint(x:X(135),y:Y(30)),NSPoint(x:X(180),y:Y(56)),NSPoint(x:X(180),y:Y(157))],ink,1.4*s)
+  line([NSPoint(x:X(207),y:Y(91)),NSPoint(x:X(256),y:Y(62)),NSPoint(x:X(305),y:Y(91)),NSPoint(x:X(305),y:Y(158))],ink,1.3*s)
+  for hx in stride(from:94,through:173,by:7) {line([NSPoint(x:X(CGFloat(hx)),y:Y(132)),NSPoint(x:X(CGFloat(hx+9)),y:Y(142))],c(0x203e4c,0.28),0.75*s)}
+  for hx in stride(from:214,through:298,by:7) {line([NSPoint(x:X(CGFloat(hx)),y:Y(133)),NSPoint(x:X(CGFloat(hx+8)),y:Y(143))],c(0x203e4c,0.26),0.75*s)}
+  for wx in [105,126,148,224,246,268] {line([NSPoint(x:X(CGFloat(wx)),y:Y(101)),NSPoint(x:X(CGFloat(wx)),y:Y(121)),NSPoint(x:X(CGFloat(wx+11)),y:Y(121))],ink,0.8*s)}
+ }
  poly([NSPoint(x:X(0),y:Y(158)),NSPoint(x:X(360),y:Y(154)),NSPoint(x:X(360),y:Y(250)),NSPoint(x:X(0),y:Y(250))],c(t.road))
+ if t.name == "diorama" {
+  poly([NSPoint(x:X(0),y:Y(158)),NSPoint(x:X(360),y:Y(151)),NSPoint(x:X(360),y:Y(164)),NSPoint(x:X(0),y:Y(170))],c(0xbac9b3))
+  poly([NSPoint(x:X(0),y:Y(170)),NSPoint(x:X(360),y:Y(164)),NSPoint(x:X(360),y:Y(174)),NSPoint(x:X(0),y:Y(179))],c(0x536c68))
+ }
  for yy in [168,194,226] {line([NSPoint(x:X(0),y:Y(CGFloat(yy))),NSPoint(x:X(180),y:Y(CGFloat(yy-9))),NSPoint(x:X(360),y:Y(CGFloat(yy-2)))],c(0xd1b894,0.46),1.3*s)}
  for bx in [16,77,151,245,335] {line([NSPoint(x:X(CGFloat(bx)),y:Y(160)),NSPoint(x:X(CGFloat(bx)-35),y:Y(250))],c(0xd1b894,0.36),1*s)}
  for (lx,ly) in [(42,74),(57,74),(331,95)] {line([NSPoint(x:X(CGFloat(lx)),y:Y(CGFloat(ly))),NSPoint(x:X(CGFloat(lx)),y:Y(172))],c(0x203a43),3*s);dot(X(CGFloat(lx)),Y(CGFloat(ly)),6*s,c(0xf5d289)); rect(X(CGFloat(lx)-2),Y(176),4*s,34*k,c(0xf5d289,0.23))}
  for (sx,sy,rr) in [(210,80,12),(229,66,16),(250,51,18),(271,39,21)] {dot(X(CGFloat(sx)),Y(CGFloat(sy)),CGFloat(rr)*s,c(t.flat ? 0xf3c38d:0xe4ded1,0.58))}
- if t.name == "diorama" {rect(X(148),Y(144),174*s,32*k,c(0x193b3d,0.28),8*s)}
+ if t.name == "diorama" {rect(X(143),Y(146),185*s,36*k,c(0x0f3035,0.44),10*s);rect(X(151),Y(140),169*s,6*k,c(0xa9c4b4),3*s)}
  rect(X(151),Y(146),169*s,25*k,c(0x1d3947),t.name == "diorama" ? 5*s:0)
  rect(X(213),Y(111),76*s,38*k,c(0x263f4b),t.name == "diorama" ? 4*s:0)
  poly([NSPoint(x:X(166),y:Y(148)),NSPoint(x:X(166),y:Y(122)),NSPoint(x:X(186),y:Y(122)),NSPoint(x:X(196),y:Y(148))],c(0x263f4b))
  for wx in [221,251] {rect(X(CGFloat(wx)),Y(117),23*s,19*k,c(0xd4ad70))}
  rect(X(166),Y(152),126*s,3*k,c(0xb96d4a))
+ if t.name == "diorama" {poly([NSPoint(x:X(320),y:Y(146)),NSPoint(x:X(328),y:Y(141)),NSPoint(x:X(328),y:Y(169)),NSPoint(x:X(320),y:Y(171))],c(0x102f38));rect(X(219),Y(111),67*s,4*k,c(0x819b90),2*s);rect(X(157),Y(159),156*s,3*k,c(0x73968e),1*s)}
  for cx in [181,237,283] {dot(X(CGFloat(cx)),Y(171),12*s,c(0xc9a86f));dot(X(CGFloat(cx)),Y(171),8*s,c(0x142f39))}
  line([NSPoint(x:X(145),y:Y(175)),NSPoint(x:X(330),y:Y(175))],c(0xd5b581),3*s)
- if t.name == "book" {for i in 0..<700 {let a=(i*53)%360;let b=(i*97)%250;dot(X(CGFloat(a)),Y(CGFloat(b)),0.35*s,c(i%2==0 ? 0xffffff:0x173543,0.14))}; rect(x+3,y+3,w-6,h-6,c(0xf4ebd8,0.1))}
+ if t.name == "diorama" {
+  poly([NSPoint(x:X(0),y:Y(214)),NSPoint(x:X(77),y:Y(204)),NSPoint(x:X(51),y:Y(250)),NSPoint(x:X(0),y:Y(250))],c(0x294a48))
+  poly([NSPoint(x:X(360),y:Y(207)),NSPoint(x:X(302),y:Y(213)),NSPoint(x:X(324),y:Y(250)),NSPoint(x:X(360),y:Y(250))],c(0x294a48))
+  rect(X(25),Y(198),19*s,23*k,c(0x9f6648),3*s);rect(X(29),Y(195),11*s,5*k,c(0xd0a073),1*s)
+  line([NSPoint(x:X(43),y:Y(215)),NSPoint(x:X(52),y:Y(238))],c(0x152f35),3*s)
+  for px in [19,52,307,338] {dot(X(CGFloat(px)),Y(228),8*s,c(0x718c70));dot(X(CGFloat(px+5)),Y(219),6*s,c(0x87a586))}
+ }
+ if t.name == "book" {
+  for i in 0..<700 {let a=(i*53)%360;let b=(i*97)%250;dot(X(CGFloat(a)),Y(CGFloat(b)),0.35*s,c(i%2==0 ? 0xffffff:0x173543,0.14))}
+  for yy in stride(from:182,through:242,by:10) {for xx in stride(from:10,through:350,by:26) {line([NSPoint(x:X(CGFloat(xx)),y:Y(CGFloat(yy))),NSPoint(x:X(CGFloat(xx+9)),y:Y(CGFloat(yy-3)))],c(0xd7d0ba,0.46),0.8*s)}}
+  line([NSPoint(x:X(4),y:Y(4)),NSPoint(x:X(356),y:Y(4))],c(0xf3e5c8),4*s);rect(x+3,y+3,w-6,h-6,c(0xf4ebd8,0.07))
+ }
  if t.flat {rect(x,y+2,w,4*k,c(0xf3d9ab));rect(x,y+h-5*k,w,4*k,c(0xf3d9ab))}
 }
 func phone(_ t:Theme,_ w:Int,_ h:Int,_ large:Bool=false) throws {

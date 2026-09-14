@@ -118,25 +118,30 @@
         ${kind==='poster'?'<circle cx="279" cy="73" r="54" fill="#f9ca81" opacity=".85"/><path d="M279 4v22M279 122v22M210 73h22M326 73h22M228 22l16 16M316 108l16 16M229 123l16-16M315 38l17-17" stroke="#f8cf91" stroke-width="4" opacity=".6"/>':''}
         <path d="M0 113h39V67h31v46h16V83h27v30h34V71h21v42h28V90h20v23h34V69h25v44h26V86h22v27h37v137H0z" fill="${kind==='poster'?'#a84e3e':kind==='diorama'?'#809592':'#87909a'}" opacity=".65"/>
         <path d="M0 133h91V58h12V48h65V58h13v75h25v-29h9V89h77v15h10v29h58v66H0z" fill="${kind==='poster'?'#183c4c':kind==='diorama'?'#556a6c':'#4f6674'}" stroke="${kind==='book'?'#253f4d':'none'}" stroke-width="1.2"/>
+        ${kind==='diorama'?'<path d="M180 58l18-12v108l-18 4zM302 92l16-11v77l-16 1z" fill="#344e54"/><path d="M91 58l42-26 65 14-18 12zM207 91l47-30 64 20-16 11z" fill="#b6c6ba"/><path d="M88 155h110M207 155h110" stroke="#d6cfab" stroke-width="5"/>':''}
         <path d="M93 57l37-24 39 24M213 88l40-30 40 30" fill="none" stroke="${kind==='poster'?'#f0b16b':'#263e47'}" stroke-width="${kind==='poster'?5:3}"/>
         <circle cx="130" cy="75" r="13" fill="${kind==='poster'?'#eab66e':'#c9b697'}" stroke="#253c47" stroke-width="2"/><path d="M130 63v12l7 4" stroke="#253c47" stroke-width="2" fill="none"/>
         <g fill="${kind==='poster'?'#e6a865':'#d9bd88'}"><rect x="104" y="99" width="12" height="19"/><rect x="123" y="99" width="12" height="19"/><rect x="144" y="99" width="12" height="19"/><rect x="227" y="99" width="11" height="20"/><rect x="246" y="99" width="11" height="20"/><rect x="265" y="99" width="11" height="20"/></g>
+        ${kind==='book'?'<path d="M91 57l39-25 40 25v99M210 89l44-31 42 31v68M92 132h87M210 132h91M104 99v20h12M123 99v20h12M144 99v20h12M227 99v20h11M246 99v20h11M265 99v20h11" stroke="#294656" stroke-width="1.3" opacity=".75" fill="none"/><path d="M96 132l10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10M214 134l10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10m-3-10 10 10" stroke="#294656" stroke-width=".7" opacity=".3"/>':''}
         <path d="M0 157Q72 149 142 158t218-3v95H0z" fill="url(#ground-${kind})"/>
+        ${kind==='diorama'?'<path d="M0 157l360-6v13L0 170z" fill="#bac9b3"/><path d="M0 170l360-6v10L0 179z" fill="#536c68"/>':''}
         <path d="M0 168Q172 155 360 165M0 194Q177 178 360 188M0 227Q175 210 360 218M47 165L3 250M108 162L80 250M172 164L159 250M235 163L244 250M300 164L329 250" stroke="${kind==='poster'?'#90a8a2':'#c1b8a4'}" stroke-width="${kind==='poster'?2:1}" opacity=".5" fill="none"/>
         <g class="smoke" fill="${kind==='poster'?'#f3c38d':'#e4ded1'}" opacity=".7"><ellipse cx="212" cy="74" rx="17" ry="9"/><ellipse cx="226" cy="64" rx="16" ry="10"/><ellipse cx="243" cy="51" rx="20" ry="9"/><ellipse cx="259" cy="40" rx="22" ry="10"/></g>
         <g filter="${kind==='diorama'?`url(#shadow-${kind})`:'none'}">
+          ${kind==='diorama'?'<rect x="143" y="144" width="184" height="36" rx="10" fill="#0f3035" opacity=".4"/><rect x="151" y="140" width="169" height="6" rx="3" fill="#a9c4b4"/>':''}
           <path d="M151 148h169v25H151z" fill="url(#train-${kind})" stroke="${kind==='book'?'#203947':'none'}" stroke-width="2"/>
           <path d="M166 147v-25h20l10 25M213 147v-37h69l14 37" fill="url(#train-${kind})" stroke="${kind==='book'?'#203947':'none'}" stroke-width="2"/>
           <rect x="221" y="117" width="23" height="19" fill="#d4ad70"/><rect x="251" y="117" width="23" height="19" fill="#d4ad70"/><rect x="166" y="151" width="126" height="3" fill="#b96d4a"/>
+          ${kind==='diorama'?'<path d="M320 148l8-6v27l-8 4z" fill="#102f38"/><path d="M220 111h67" stroke="#819b90" stroke-width="4"/><path d="M158 161h155" stroke="#73968e" stroke-width="3"/>':''}
           <circle cx="181" cy="171" r="12" fill="#142f39" stroke="#c9a86f" stroke-width="4"/><circle cx="237" cy="171" r="12" fill="#142f39" stroke="#c9a86f" stroke-width="4"/><circle cx="283" cy="171" r="12" fill="#142f39" stroke="#c9a86f" stroke-width="4"/>
           <path d="M146 175h185" stroke="#d5b581" stroke-width="4"/>
         </g>
         <g stroke="#203a43" stroke-width="4" fill="none"><path d="M42 74v99M55 76v95M332 94v79"/><path d="M36 75q7-13 13 0M49 75q7-13 13 0M326 95q7-13 13 0"/></g>
         <g fill="#f4cf83"><circle cx="42" cy="76" r="6"/><circle cx="55" cy="76" r="6"/><circle cx="332" cy="96" r="6"/></g>
         <g fill="#f2d5a2" opacity=".35"><ellipse cx="43" cy="197" rx="6" ry="21"/><ellipse cx="55" cy="201" rx="5" ry="17"/><ellipse cx="333" cy="194" rx="7" ry="20"/><path d="M221 185l12 62h-8l-12-62z"/></g>
-        ${kind==='book'?'<rect width="360" height="250" fill="url(#grain-book)" opacity=".55"/><path d="M3 4h354v242H3z" stroke="#ece0c9" stroke-width="6" fill="none"/>':''}
+        ${kind==='book'?'<path d="M8 185l9-3m17 9 9-3m16 2 9-3m17 9 9-3m16 2 9-3m17 9 9-3m16 2 9-3m17 9 9-3m16 2 9-3m17 9 9-3m16 2 9-3m17 9 9-3m16 2 9-3" stroke="#d7d0ba" opacity=".65"/><rect width="360" height="250" fill="url(#grain-book)" opacity=".55"/><path d="M3 4h354v242H3z" stroke="#ece0c9" stroke-width="6" fill="none"/>':''}
         ${kind==='poster'?'<path d="M0 2h360M0 247h360" stroke="#f3d9ab" stroke-width="5"/>':''}
-        ${kind==='diorama'?'<path d="M0 240q180-18 360 0v10H0" fill="#243e43" opacity=".55"/>':''}
+        ${kind==='diorama'?'<path d="M0 214l77-10-26 46H0zM360 207l-58 6 22 37h36z" fill="#294a48"/><rect x="25" y="198" width="19" height="23" rx="3" fill="#9f6648"/><rect x="29" y="195" width="11" height="5" rx="1" fill="#d0a073"/><path d="M43 215l9 23" stroke="#152f35" stroke-width="3"/><g fill="#718c70"><circle cx="19" cy="228" r="8"/><circle cx="52" cy="228" r="8"/><circle cx="307" cy="228" r="8"/><circle cx="338" cy="228" r="8"/></g><g fill="#87a586"><circle cx="24" cy="219" r="6"/><circle cx="57" cy="219" r="6"/><circle cx="312" cy="219" r="6"/><circle cx="343" cy="219" r="6"/></g>':''}
       </svg>`;
     const icons = [
       '<path d="M3 17l5-10 5 5 4-8 4 13H3z"/><path d="M4 20h16"/>',

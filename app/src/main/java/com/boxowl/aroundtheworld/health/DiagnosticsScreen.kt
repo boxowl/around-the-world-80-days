@@ -57,7 +57,7 @@ fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Шаги · проверка подключения", style = MaterialTheme.typography.titleLarge)
-        Text("Читаем только число шагов. Данные остаются на телефоне; в этой версии они ещё не двигают героя и не сохраняются приложением.")
+        Text("Читаем только число шагов. После начала экспедиции дневные итоги сохраняются на телефоне и двигают героя.")
         when (val current = state) {
             DiagnosticState.Loading -> { CircularProgressIndicator(); Text("Проверяем доступ и читаем шаги…") }
             DiagnosticState.Unavailable -> Text("Health Connect недоступен на этом устройстве. Проверим другой источник шагов после испытания телефона.")

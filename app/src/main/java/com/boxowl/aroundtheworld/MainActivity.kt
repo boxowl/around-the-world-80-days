@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.boxowl.aroundtheworld.health.DiagnosticsPanel
+import com.boxowl.aroundtheworld.expedition.ExpeditionPanel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,20 +45,11 @@ private fun ExpeditionScreen() {
             Text(stringResource(R.string.journey_title), style = MaterialTheme.typography.displaySmall,
                 fontFamily = FontFamily.Serif, color = MaterialTheme.colorScheme.onBackground)
             Text(stringResource(R.string.journey_subtitle), color = MaterialTheme.colorScheme.onBackground)
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.first_leg), style = MaterialTheme.typography.labelMedium)
-                    Text(stringResource(R.string.route), style = MaterialTheme.typography.headlineMedium,
-                        fontFamily = FontFamily.Serif, color = Color(0xFFA44D35))
-                    HorizontalDivider()
-                    Text(stringResource(R.string.departure))
-                }
-            }
+            ExpeditionPanel()
+            HorizontalDivider()
             DiagnosticsPanel()
             HorizontalDivider()
-            Text(stringResource(R.string.journal_status), style = MaterialTheme.typography.titleMedium,
-                fontFamily = FontFamily.Serif)
-            Text(stringResource(R.string.journal_description))
+
         }
     }
 }

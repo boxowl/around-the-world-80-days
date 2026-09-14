@@ -13,6 +13,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,6 +24,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.boxowl.aroundtheworld.PermissionsRationaleActivity
+import com.boxowl.aroundtheworld.health.DiagnosticsPanel
 import com.boxowl.aroundtheworld.health.HealthConnectStepsGateway
 import java.time.Instant
 import java.time.format.DateTimeFormatter
@@ -35,6 +39,7 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
     var selectedModeName by rememberSaveable { mutableStateOf(JourneyMode.WAGER.name) }
     var selectedPace by rememberSaveable { mutableIntStateOf(BASE_PACE) }
     var actionError by remember { mutableStateOf(false) }
+    var showPrestartDiagnostics by rememberSaveable { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
     ) {
@@ -101,49 +106,71 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                 var now by remember { mutableStateOf(Instant.now()) }
                 LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
                 val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
-                Text("Лондон → Суэц", style = MaterialTheme.typography.headlineSmall)
-                Text("День ${expedition.dayNumber(now)} · ${if (expedition.mode == JourneyMode.FREE) "Свободное путешествие" else "Пари на 80 дней"}")
-                Text("Темп: ${formatSteps(expedition.paceStepsPerDay.toLong())} шагов/день · цель: ${formatSteps(expedition.worldGoal)} шагов")
-                Text("Первый участок: ${formatSteps(expedition.firstLegGoal)} шагов. ${expedition.goalExplanation}")
-                Text("Старт: ${format.format(expedition.startedAt)}\nЧасовой пояс: ${expedition.zone.id}")
-                if (expedition.mode == JourneyMode.WAGER) {
-                    Text("Срок пари: ${format.format(expedition.deadline)}")
-                    if (expedition.wagerStatus(now) == WagerStatus.EXPIRED) Text("Срок пари истёк. Путешествие и дневник сохраняются.")
-                }
-                if (expedition.dailySteps.isEmpty()) Text("Подтверждённых дневных итогов пока нет.")
-                else Text("Известный прогресс: ${formatSteps(expedition.totalSteps)} шагов")
-                if (expedition.lastReadAt == null) Text("Успешного чтения шагов пока не было.")
-                else Text("Последняя успешная сверка: ${format.format(expedition.lastReadAt)}")
-                when (val sync = current.sync) {
-                    is SyncResult.Updated -> {
-                        if (sync.gaps > 0) Text("Нет доступного итога для ${sync.gaps} дневных окон. Известные шаги сохранены.")
-                        if (sync.limited) Text("Ранние дни вне текущего окна сверки; сохранённые итоги не удалены.")
-                        if (sync.gaps == 0 && !sync.limited) Text("Дневные итоги сверены с Health Connect.")
+                var page by rememberSaveable { mutableStateOf("journey") }
+                val largeFont = LocalConfiguration.current.fontScale >= 1.3f
+                val tabs = listOf("journey" to "Путь", "diary" to "Дневник", "health" to "Шаги и доступ")
+                if (largeFont) {
+                    Column {
+                        Row(Modifier.fillMaxWidth()) {
+                            tabs.take(2).forEach { (id, label) ->
+                                TextButton(onClick = { page = id }, modifier = Modifier.weight(1f)) {
+                                    Text(label, fontWeight = if (page == id) FontWeight.Bold else FontWeight.Normal,
+                                        textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+                        TextButton(onClick = { page = "health" }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Шаги и доступ", fontWeight = if (page == "health") FontWeight.Bold else FontWeight.Normal)
+                        }
                     }
-                    SyncResult.PermissionRequired -> Text("Доступ к шагам отсутствует. Сохранённый прогресс остаётся.")
-                    SyncResult.Unavailable -> Text("Health Connect недоступен. Сохранённый прогресс остаётся.")
-                    SyncResult.UpdateRequired -> Text("Health Connect требует установки или обновления. Сохранённый прогресс остаётся.")
-                    SyncResult.ReadError -> Text("Не удалось прочитать шаги. Это не ноль шагов; сохранённый прогресс остаётся.")
-                    null -> Unit
+                } else {
+                    Row(Modifier.fillMaxWidth()) {
+                        tabs.forEach { (id, label) ->
+                            TextButton(onClick = { page = id }, modifier = Modifier.weight(1f)) {
+                                Text(label, fontWeight = if (page == id) FontWeight.Bold else FontWeight.Normal,
+                                    textAlign = TextAlign.Center, maxLines = 2)
+                            }
+                        }
+                    }
                 }
-                StepAccessPanel(access, actionError,
-                    request = {
-                        actionError = false
-                        try { permissionLauncher.launch(HealthConnectStepsGateway.PERMISSIONS) }
-                        catch (_: ActivityNotFoundException) { actionError = true }
-                        catch (_: SecurityException) { actionError = true }
-                    }, open = ::open, retry = model::checkAccess)
-                if (current.syncing) Text("Сверяем дневные шаги…")
-                OutlinedButton(onClick = model::refresh, enabled = !current.syncing) { Text("Сверить шаги") }
-                LinearProgressIndicator(progress = { expedition.firstLegSteps.toFloat() / expedition.firstLegGoal }, modifier = Modifier.fillMaxWidth())
-                Text(expedition.nextStop?.let { "Следующее открытие: ${it.name} · ещё ${formatSteps(it.threshold - expedition.totalSteps)} шагов" } ?: "Суэц достигнут. Следующая глава пока не реализована.")
-                HorizontalDivider()
-                Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
-                expedition.stops.filter { it.id in expedition.unlocked }.forEach {
-                    Text(it.name, style = MaterialTheme.typography.titleMedium)
-                    Text(it.diary)
+                when (page) {
+                    "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, model::refresh)
+                    "diary" -> {
+                        Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
+                        expedition.stops.filter { it.id in expedition.unlocked }.forEach {
+                            Text(it.name, style = MaterialTheme.typography.titleMedium)
+                            Text(it.diary)
+                        }
+                    }
+                    else -> {
+                        Text("Экспедиция", style = MaterialTheme.typography.titleLarge)
+                        Text("${if (expedition.mode == JourneyMode.FREE) "Свободное путешествие" else "Пари на 80 дней"} · темп ${formatSteps(expedition.paceStepsPerDay.toLong())} шагов/день")
+                        Text("Старт: ${format.format(expedition.startedAt)} · пояс ${expedition.zone.id}")
+                        if (expedition.mode == JourneyMode.WAGER) {
+                            Text("Срок пари: ${format.format(expedition.deadline)}")
+                            if (expedition.wagerStatus(now) == WagerStatus.EXPIRED) Text("Срок пари истёк. Путешествие и дневник сохраняются.")
+                        }
+                        if (expedition.lastReadAt != null) Text("Последняя успешная сверка: ${format.format(expedition.lastReadAt)}")
+                        StepAccessPanel(access, actionError,
+                            request = {
+                                actionError = false
+                                try { permissionLauncher.launch(HealthConnectStepsGateway.PERMISSIONS) }
+                                catch (_: ActivityNotFoundException) { actionError = true }
+                                catch (_: SecurityException) { actionError = true }
+                            }, open = ::open, retry = model::checkAccess)
+                        if (current.syncing) Text("Сверяем дневные шаги…")
+                        OutlinedButton(onClick = model::refresh, enabled = !current.syncing) { Text("Сверить шаги") }
+                        HorizontalDivider()
+                        DiagnosticsPanel()
+                    }
                 }
             }
+        }
+        if (state !is JourneyState.Active) {
+            TextButton(onClick = { showPrestartDiagnostics = !showPrestartDiagnostics }) {
+                Text(if (showPrestartDiagnostics) "Скрыть диагностику шагов" else "Диагностика шагов")
+            }
+            if (showPrestartDiagnostics) DiagnosticsPanel()
         }
     }
 }

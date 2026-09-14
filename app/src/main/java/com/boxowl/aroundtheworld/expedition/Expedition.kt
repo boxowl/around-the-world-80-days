@@ -10,6 +10,10 @@ data class Expedition(
     val startedAt: Instant,
     val zone: ZoneId,
     val mode: JourneyMode,
+    val paceStepsPerDay: Int = BASE_PACE,
+    val worldGoal: Long = paceStepsPerDay * 80L,
+    val firstLegGoal: Long = paceStepsPerDay * 7L,
+    val goalExplanation: String = goalExplanation(paceStepsPerDay),
     val dailySteps: Map<LocalDate, Long> = emptyMap(),
     val unlocked: Set<String> = setOf("london"),
     val lastReadAt: Instant? = null,
@@ -17,6 +21,9 @@ data class Expedition(
 ) {
     init {
         require(routeVersion == 1) { "Unsupported route version" }
+        require(paceStepsPerDay in PACES) { "Unsupported pace" }
+        require(worldGoal == paceStepsPerDay * 80L && firstLegGoal == paceStepsPerDay * 7L)
+        require(goalExplanation.isNotBlank())
         require(dailySteps.values.all { it >= 0 })
         require(dailySteps.keys.all { it >= startDate })
         require(unlocked.all { id -> FIRST_LEG.any { it.id == id } })
@@ -30,12 +37,13 @@ data class Expedition(
     val deadline: Instant get() = startDate.plusDays(80).atStartOfDay(zone).toInstant()
     val totalSteps: Long get() = dailySteps.values.fold(0L, Math::addExact)
     val wagerSteps: Long get() = dailySteps.filterKeys { it < startDate.plusDays(80) }.values.fold(0L, Math::addExact)
-    val firstLegSteps: Long get() = totalSteps.coerceAtMost(FIRST_LEG_GOAL)
-    val nextStop: RouteStop? get() = FIRST_LEG.firstOrNull { it.threshold > totalSteps }
+    val firstLegSteps: Long get() = totalSteps.coerceAtMost(firstLegGoal)
+    val stops: List<RouteStop> get() = FIRST_LEG.map { it.copy(threshold = scaledThreshold(it.threshold, worldGoal)) }
+    val nextStop: RouteStop? get() = stops.firstOrNull { it.threshold > totalSteps }
     fun dayNumber(now: Instant): Long = (ChronoUnit.DAYS.between(startDate, now.atZone(zone).toLocalDate()) + 1).coerceAtLeast(1)
     fun wagerStatus(now: Instant): WagerStatus = when {
         mode == JourneyMode.FREE -> WagerStatus.NOT_APPLICABLE
-        wagerSteps >= WORLD_GOAL -> WagerStatus.WON
+        wagerSteps >= worldGoal -> WagerStatus.WON
         now >= deadline -> WagerStatus.EXPIRED
         else -> WagerStatus.ACTIVE
     }
@@ -48,7 +56,7 @@ data class Expedition(
         require(readAt >= startedAt)
         require(lastReadAt == null || readAt >= lastReadAt) { "Stale read" }
         val revised = copy(dailySteps = dailySteps + replacements, lastReadAt = readAt)
-        return revised.copy(unlocked = unlocked + FIRST_LEG.filter { it.threshold <= revised.totalSteps }.map { it.id })
+        return revised.copy(unlocked = unlocked + revised.stops.filter { it.threshold <= revised.totalSteps }.map { it.id })
     }
 }
 enum class JourneyMode { WAGER, FREE }
@@ -56,6 +64,13 @@ enum class WagerStatus { NOT_APPLICABLE, ACTIVE, WON, EXPIRED }
 data class RouteStop(val id: String, val name: String, val threshold: Long, val diary: String)
 const val WORLD_GOAL = 560_000L
 const val FIRST_LEG_GOAL = 49_000L
+const val BASE_PACE = 7_000
+val PACES = listOf(5_000, BASE_PACE, 10_000)
+fun goalExplanation(pace: Int): String = "$pace шагов в день × 80 календарных дней; первый участок — $pace × 7. Пороговые события масштабированы от базового маршрута."
+fun scaledThreshold(base: Long, worldGoal: Long): Long {
+    require(base in 0..WORLD_GOAL && worldGoal > 0)
+    return Math.addExact(Math.multiplyExact(base, worldGoal), WORLD_GOAL / 2) / WORLD_GOAL
+}
 val FIRST_LEG = listOf(
     RouteStop("london", "Лондон", 0, "Паспорт раскрыт на первой странице. Впереди — дорога к морю и целый мир за окном."),
     RouteStop("departure", "За лондонскими крышами", 1_000, "Крыши остаются позади. Первые поля сменяют город, и путешествие обретает свой ритм."),

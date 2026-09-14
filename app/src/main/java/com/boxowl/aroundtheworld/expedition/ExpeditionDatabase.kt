@@ -11,6 +11,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.withTransaction
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -23,6 +25,10 @@ data class ExpeditionRow(
     val mode: String,
     val lastReadAt: String?,
     val routeVersion: Int,
+    val paceStepsPerDay: Int,
+    val worldGoal: Long,
+    val firstLegGoal: Long,
+    val goalExplanation: String,
 )
 
 @Entity(tableName = "daily_steps")
@@ -41,13 +47,22 @@ interface ExpeditionDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun putDiary(rows: List<DiaryRow>)
 }
 
-@Database(entities = [ExpeditionRow::class, DailyStepsRow::class, DiaryRow::class], version = 1, exportSchema = false)
+@Database(entities = [ExpeditionRow::class, DailyStepsRow::class, DiaryRow::class], version = 2, exportSchema = false)
 abstract class ExpeditionDatabase : RoomDatabase() {
     abstract fun expeditionDao(): ExpeditionDao
     companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expedition ADD COLUMN paceStepsPerDay INTEGER NOT NULL DEFAULT 7000")
+                db.execSQL("ALTER TABLE expedition ADD COLUMN worldGoal INTEGER NOT NULL DEFAULT 560000")
+                db.execSQL("ALTER TABLE expedition ADD COLUMN firstLegGoal INTEGER NOT NULL DEFAULT 49000")
+                db.execSQL("ALTER TABLE expedition ADD COLUMN goalExplanation TEXT NOT NULL DEFAULT '7000 шагов в день × 80 календарных дней; первый участок — 7000 × 7. Пороговые события масштабированы от базового маршрута.'")
+            }
+        }
         @Volatile private var instance: ExpeditionDatabase? = null
         fun get(context: Context): ExpeditionDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, ExpeditionDatabase::class.java, "expedition.db")
+                .addMigrations(MIGRATION_1_2)
                 .build().also { instance = it }
         }
     }
@@ -71,9 +86,9 @@ class ExpeditionRepository(
         return database.withTransaction { read() }
     }
 
-    suspend fun start(mode: JourneyMode, now: Instant, zone: ZoneId): Expedition = database.withTransaction {
+    suspend fun start(mode: JourneyMode, now: Instant, zone: ZoneId, paceStepsPerDay: Int = BASE_PACE): Expedition = database.withTransaction {
         // load() must run first, including legacy import. Recheck to prevent a stale UI starting twice.
-        read() ?: Expedition(now, zone, mode).also { write(it) }
+        read() ?: Expedition(now, zone, mode, paceStepsPerDay = paceStepsPerDay).also { write(it) }
     }
 
     override suspend fun reconcile(replacements: Map<LocalDate, Long>, readAt: Instant): Expedition = database.withTransaction {
@@ -88,6 +103,8 @@ class ExpeditionRepository(
         return Expedition(
             startedAt = Instant.parse(row.startedAt), zone = ZoneId.of(row.zone),
             mode = JourneyMode.valueOf(row.mode), routeVersion = row.routeVersion,
+            paceStepsPerDay = row.paceStepsPerDay, worldGoal = row.worldGoal,
+            firstLegGoal = row.firstLegGoal, goalExplanation = row.goalExplanation,
             lastReadAt = row.lastReadAt?.let(Instant::parse),
             dailySteps = dao.days().associate { LocalDate.parse(it.date) to it.count },
             unlocked = dao.diary().map { it.stopId }.toSet(),
@@ -99,6 +116,8 @@ class ExpeditionRepository(
             startedAt = expedition.startedAt.toString(), zone = expedition.zone.id,
             mode = expedition.mode.name, lastReadAt = expedition.lastReadAt?.toString(),
             routeVersion = expedition.routeVersion,
+            paceStepsPerDay = expedition.paceStepsPerDay, worldGoal = expedition.worldGoal,
+            firstLegGoal = expedition.firstLegGoal, goalExplanation = expedition.goalExplanation,
         ))
         dao.putDays(expedition.dailySteps.map { DailyStepsRow(it.key.toString(), it.value) })
         dao.putDiary(expedition.unlocked.map(::DiaryRow))

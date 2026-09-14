@@ -13,6 +13,42 @@ class ExpeditionTest {
     private val date = LocalDate.of(2026, 9, 13)
     private fun expedition(mode: JourneyMode = JourneyMode.WAGER) = Expedition(start, zone, mode)
 
+    @Test fun selectablePacesScaleEveryThresholdAndFinishFirstLegExactly() {
+        PACES.forEach { pace ->
+            val journey = Expedition(start, zone, JourneyMode.FREE, paceStepsPerDay = pace)
+            assertEquals(pace * 80L, journey.worldGoal)
+            assertEquals(pace * 7L, journey.firstLegGoal)
+            assertEquals(0L, journey.stops.first().threshold)
+            assertEquals(journey.firstLegGoal, journey.stops.last().threshold)
+            assertEquals(FIRST_LEG.map { it.id }, journey.stops.map { it.id })
+            assertTrue(journey.stops.zipWithNext().all { (a, b) -> a.threshold < b.threshold })
+            journey.stops.drop(1).forEach { stop ->
+                val before = journey.reconcile(mapOf(date to stop.threshold - 1), start.plusSeconds(1))
+                assertEquals(stop.id, before.nextStop?.id)
+                assertFalse(stop.id in before.unlocked)
+                val at = before.reconcile(mapOf(date to stop.threshold), start.plusSeconds(2))
+                assertTrue(stop.id in at.unlocked)
+            }
+        }
+        assertEquals(714L, scaledThreshold(1_000L, 400_000L))
+        assertEquals(1_429L, scaledThreshold(1_000L, 800_000L))
+    }
+
+    @Test fun customizedWagerUsesFixedGoalAndCorrectionKeepsDiary() {
+        val journey = Expedition(start, zone, JourneyMode.WAGER, paceStepsPerDay = 5_000)
+        val arrived = journey.reconcile(mapOf(date to 400_000L), start.plusSeconds(1))
+        assertEquals(WagerStatus.WON, arrived.wagerStatus(start.plusSeconds(1)))
+        val corrected = arrived.reconcile(mapOf(date to 34_999L), start.plusSeconds(2))
+        assertEquals(WagerStatus.ACTIVE, corrected.wagerStatus(start.plusSeconds(2)))
+        assertEquals("suez", corrected.nextStop?.id)
+        assertTrue("suez" in corrected.unlocked)
+        assertEquals(34_999L, corrected.firstLegSteps)
+        assertEquals(35_000L, corrected.firstLegGoal)
+        assertEquals(WagerStatus.NOT_APPLICABLE, corrected.copy(mode = JourneyMode.FREE).wagerStatus(start.plusSeconds(2)))
+        assertThrows(IllegalArgumentException::class.java) { journey.copy(paceStepsPerDay = 6_000) }
+        assertThrows(IllegalArgumentException::class.java) { journey.copy(worldGoal = 560_000L) }
+    }
+
     @Test fun everyStopUnlocksExactlyAtItsThreshold() {
         val thresholds = listOf(
             "london" to 0L, "departure" to 1_000L, "dover" to 4_000L,

@@ -104,6 +104,7 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
             }
             is JourneyState.Active -> {
                 val expedition = current.expedition
+                val newEvent = expedition.stops.firstOrNull { it.id in current.unviewedEventIds }
                 var now by remember { mutableStateOf(Instant.now()) }
                 LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
                 val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
@@ -123,14 +124,43 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                         }
                     }
                 }
+                if (newEvent != null && page != "diary") {
+                    ElevatedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Новое событие · ${newEvent.name}", style = MaterialTheme.typography.titleMedium)
+                            Text(newEvent.diary)
+                            Button(onClick = { model.markEventViewed(newEvent.id) }) { Text("Прочитано") }
+                            if (current.eventActionError) {
+                                Text("Не удалось сохранить отметку. Запись останется новой; попробуйте ещё раз.",
+                                    color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
                 when (page) {
                     "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, model::refresh)
                     "map" -> FirstLegMap(expedition, onOpenDiary = { page = "diary" })
                     "diary" -> {
                         Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
-                        expedition.stops.filter { it.id in expedition.unlocked }.forEach {
-                            Text(it.name, style = MaterialTheme.typography.titleMedium)
-                            Text(it.diary)
+                        Text("Открытые записи остаются здесь, даже если источник шагов позже скорректирует итог.")
+                        expedition.stops.filter { it.id in expedition.unlocked }.forEach { stop ->
+                            ElevatedCard(Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(stop.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(stop.diary)
+                                    if (stop.id in current.unviewedEventIds) {
+                                        Text("Новая запись", color = MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.labelLarge)
+                                        OutlinedButton(onClick = { model.markEventViewed(stop.id) }) {
+                                            Text("Отметить прочитанной")
+                                        }
+                                        if (current.eventActionError) {
+                                            Text("Не удалось сохранить отметку. Запись останется новой; попробуйте ещё раз.",
+                                                color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     else -> {

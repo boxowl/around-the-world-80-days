@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 class ExpeditionSchemaV2Test {
     private val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private fun open(name: String) = Room.databaseBuilder(context, ExpeditionDatabase::class.java, name)
-        .addMigrations(ExpeditionDatabase.MIGRATION_1_2).build()
+        .addMigrations(ExpeditionDatabase.MIGRATION_1_2, ExpeditionDatabase.MIGRATION_2_3).build()
 
     @Test fun migratesActualV1FileWithoutMovingProgressOrDiary() = runBlocking {
         val name = "f03-v1-${System.nanoTime()}.db"
@@ -43,6 +43,9 @@ class ExpeditionSchemaV2Test {
             assertEquals(FIRST_LEG_GOAL, loaded.firstLegGoal)
             assertEquals(4_200L, loaded.totalSteps)
             assertEquals(setOf("london", "dover"), loaded.unlocked)
+            val migrated = open(name)
+            try { assertEquals(listOf("dover"), ExpeditionRepository(migrated, ExpeditionStore(context)).unviewedEvents()) }
+            finally { migrated.close() }
             assertEquals(Instant.parse("2026-09-13T07:02:00Z"), loaded.lastReadAt)
             val reopened = open(name)
             try { assertEquals(loaded, ExpeditionRepository(reopened, ExpeditionStore(context)).load()) }

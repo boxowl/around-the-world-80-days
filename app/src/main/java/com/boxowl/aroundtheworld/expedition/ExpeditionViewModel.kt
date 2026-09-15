@@ -18,7 +18,13 @@ import java.time.ZoneId
 sealed interface JourneyState {
     data object Loading : JourneyState
     data object NotStarted : JourneyState
-    data class Active(val expedition: Expedition, val sync: SyncResult? = null, val syncing: Boolean = false) : JourneyState
+    data class Active(
+        val expedition: Expedition,
+        val sync: SyncResult? = null,
+        val syncing: Boolean = false,
+        val unviewedEventIds: List<String> = emptyList(),
+        val eventActionError: Boolean = false,
+    ) : JourneyState
     data object StorageError : JourneyState
 }
 class ExpeditionViewModel(application: Application) : AndroidViewModel(application) {
@@ -30,6 +36,7 @@ class ExpeditionViewModel(application: Application) : AndroidViewModel(applicati
     private val mutableAccess = MutableStateFlow<StepAccess>(StepAccess.Checking)
     val access = mutableAccess.asStateFlow()
     private var syncJob: Job? = null
+    private val viewedThisSession = mutableSetOf<String>()
     init { reload(); checkAccess() }
     fun checkAccess() {
         viewModelScope.launch {
@@ -48,7 +55,7 @@ class ExpeditionViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             try {
                 val saved = withContext(Dispatchers.IO) { repository.load() }
-                mutableState.value = saved?.let { JourneyState.Active(it) } ?: JourneyState.NotStarted
+                mutableState.value = saved?.let { JourneyState.Active(it, unviewedEventIds = repository.unviewedEvents()) } ?: JourneyState.NotStarted
                 if (saved != null) refresh()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { mutableState.value = JourneyState.StorageError }
@@ -62,7 +69,7 @@ class ExpeditionViewModel(application: Application) : AndroidViewModel(applicati
                 val saved = withContext(Dispatchers.IO) {
                     repository.start(mode, Instant.now(), ZoneId.systemDefault(), paceStepsPerDay)
                 }
-                mutableState.value = JourneyState.Active(saved)
+                mutableState.value = JourneyState.Active(saved, unviewedEventIds = repository.unviewedEvents())
                 refresh()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { mutableState.value = JourneyState.StorageError }
@@ -73,13 +80,43 @@ class ExpeditionViewModel(application: Application) : AndroidViewModel(applicati
         syncJob?.cancel()
         mutableState.value = current.copy(syncing = true)
         syncJob = viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) { synchronizer.refresh(current.expedition, Instant.now()) }
-            val active = mutableState.value as? JourneyState.Active ?: return@launch
-            mutableState.value = active.copy(
-                expedition = (result as? SyncResult.Updated)?.expedition ?: active.expedition,
-                sync = result, syncing = false,
-            )
-            checkAccess()
+            try {
+                val result = withContext(Dispatchers.IO) { synchronizer.refresh(current.expedition, Instant.now()) }
+                val active = mutableState.value as? JourneyState.Active ?: return@launch
+                val unviewed = if (result is SyncResult.Updated) {
+                    withContext(Dispatchers.IO) { repository.unviewedEvents() }
+                } else active.unviewedEventIds
+                mutableState.value = active.copy(
+                    expedition = (result as? SyncResult.Updated)?.expedition ?: active.expedition,
+                    sync = result,
+                    syncing = false,
+                    unviewedEventIds = unviewed.filterNot { it in viewedThisSession },
+                )
+                checkAccess()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                val active = mutableState.value as? JourneyState.Active ?: return@launch
+                mutableState.value = active.copy(sync = SyncResult.ReadError, syncing = false)
+            }
+        }
+    }
+    fun markEventViewed(stopId: String) {
+        val active = mutableState.value as? JourneyState.Active ?: return
+        if (stopId !in active.unviewedEventIds) return
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { repository.markEventViewed(stopId) }
+                viewedThisSession += stopId
+                val latest = mutableState.value as? JourneyState.Active ?: return@launch
+                mutableState.value = latest.copy(
+                    unviewedEventIds = latest.unviewedEventIds - stopId,
+                    eventActionError = false,
+                )
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                val latest = mutableState.value as? JourneyState.Active ?: return@launch
+                mutableState.value = latest.copy(eventActionError = true)
+            }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.boxowl.aroundtheworld.expedition
 
 import android.content.Context
 import androidx.room.Dao
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Insert
@@ -35,19 +36,21 @@ data class ExpeditionRow(
 data class DailyStepsRow(@PrimaryKey val date: String, val count: Long)
 
 @Entity(tableName = "unlocked_diary")
-data class DiaryRow(@PrimaryKey val stopId: String)
+data class DiaryRow(@PrimaryKey val stopId: String, @ColumnInfo(defaultValue = "0") val viewed: Boolean = false)
 
 @Dao
 interface ExpeditionDao {
     @Query("SELECT * FROM expedition WHERE id = 1") suspend fun expedition(): ExpeditionRow?
     @Query("SELECT * FROM daily_steps") suspend fun days(): List<DailyStepsRow>
     @Query("SELECT * FROM unlocked_diary") suspend fun diary(): List<DiaryRow>
+    @Query("SELECT stopId FROM unlocked_diary WHERE viewed = 0") suspend fun unviewedDiary(): List<String>
+    @Query("UPDATE unlocked_diary SET viewed = 1 WHERE stopId = :stopId") suspend fun markViewed(stopId: String)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putExpedition(row: ExpeditionRow)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putDays(rows: List<DailyStepsRow>)
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun putDiary(rows: List<DiaryRow>)
 }
 
-@Database(entities = [ExpeditionRow::class, DailyStepsRow::class, DiaryRow::class], version = 2, exportSchema = false)
+@Database(entities = [ExpeditionRow::class, DailyStepsRow::class, DiaryRow::class], version = 3, exportSchema = false)
 abstract class ExpeditionDatabase : RoomDatabase() {
     abstract fun expeditionDao(): ExpeditionDao
     companion object {
@@ -59,10 +62,17 @@ abstract class ExpeditionDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE expedition ADD COLUMN goalExplanation TEXT NOT NULL DEFAULT '7000 шагов в день × 80 календарных дней; первый участок — 7000 × 7. Пороговые события масштабированы от базового маршрута.'")
             }
         }
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // V2 stored unlocks, not whether their stories were read. Surface them once after upgrade.
+                db.execSQL("ALTER TABLE unlocked_diary ADD COLUMN viewed INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE unlocked_diary SET viewed = 1 WHERE stopId = 'london'")
+            }
+        }
         @Volatile private var instance: ExpeditionDatabase? = null
         fun get(context: Context): ExpeditionDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, ExpeditionDatabase::class.java, "expedition.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build().also { instance = it }
         }
     }
@@ -98,6 +108,16 @@ class ExpeditionRepository(
         revised
     }
 
+    suspend fun unviewedEvents(): List<String> = database.withTransaction {
+        val pending = dao.unviewedDiary().toSet()
+        FIRST_LEG.map { it.id }.filter { it in pending }
+    }
+
+    suspend fun markEventViewed(stopId: String) = database.withTransaction {
+        require(FIRST_LEG.any { it.id == stopId })
+        dao.markViewed(stopId)
+    }
+
     private suspend fun read(): Expedition? {
         val row = dao.expedition() ?: return null
         return Expedition(
@@ -120,6 +140,6 @@ class ExpeditionRepository(
             firstLegGoal = expedition.firstLegGoal, goalExplanation = expedition.goalExplanation,
         ))
         dao.putDays(expedition.dailySteps.map { DailyStepsRow(it.key.toString(), it.value) })
-        dao.putDiary(expedition.unlocked.map(::DiaryRow))
+        dao.putDiary(expedition.unlocked.map { DiaryRow(it, viewed = it == "london") })
     }
 }

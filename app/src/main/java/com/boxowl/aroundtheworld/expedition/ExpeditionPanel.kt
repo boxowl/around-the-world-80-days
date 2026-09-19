@@ -7,16 +7,14 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,73 +61,93 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
         catch (_: ActivityNotFoundException) { actionError = true }
         catch (_: SecurityException) { actionError = true }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        when (val current = state) {
-            JourneyState.Loading -> CircularProgressIndicator()
-            JourneyState.NotStarted -> {
-                Text("Настройка экспедиции", style = MaterialTheme.typography.titleLarge)
-                Text("Выберите режим и темп до старта. Отсчёт шагов начнётся с момента нажатия «Начать экспедицию».")
-                JourneyMode.entries.forEach { mode ->
-                    Row {
-                        RadioButton(selected = selectedModeName == mode.name, onClick = { selectedModeName = mode.name })
-                        Text(if (mode == JourneyMode.WAGER) "Пари на 80 календарных дней" else "Свободное путешествие без срока")
-                    }
-                }
-                if (selectedModeName == JourneyMode.WAGER.name) Text("Срок рассчитывается по часовому поясу на момент старта. Опоздание не удаляет путь или дневник.")
-                Text("Темп, шагов в день", style = MaterialTheme.typography.titleMedium)
-                PACES.forEach { pace ->
-                    Row {
-                        RadioButton(selected = selectedPace == pace, onClick = { selectedPace = pace })
-                        Text("${formatSteps(pace.toLong())} шагов")
-                    }
-                }
-                Text("Полный маршрут: ${formatSteps(selectedPace * 80L)} шагов · Лондон → Суэц: ${formatSteps(selectedPace * 7L)} шагов.")
-                Text("Ближайшее событие: «За лондонскими крышами» — ${formatSteps(scaledThreshold(1_000, selectedPace * 80L))} шагов.")
-                Text("Цель фиксируется при старте; будущая смена темпа не передвинет текущую экспедицию.")
-                StepAccessPanel(access, actionError,
-                    request = {
-                        actionError = false
-                        try { permissionLauncher.launch(HealthConnectStepsGateway.PERMISSIONS) }
-                        catch (_: ActivityNotFoundException) { actionError = true }
-                        catch (_: SecurityException) { actionError = true }
-                    }, open = ::open, retry = model::checkAccess)
-                Button(onClick = { model.start(JourneyMode.valueOf(selectedModeName), selectedPace) }) {
-                    Text("Начать экспедицию")
-                }
-                Text("Можно начать без доступа. Подключите шаги позже: выбранные режим и темп сохранятся.")
-            }
-            JourneyState.StorageError -> {
-                Text("Не удалось прочитать или сохранить экспедицию. Существующая история не сброшена.")
-                Button(onClick = model::reload) { Text("Повторить чтение сохранения") }
-            }
-            is JourneyState.Active -> {
-                val expedition = current.expedition
-                val newEvent = expedition.stops.firstOrNull { it.id in current.unviewedEventIds }
-                var now by remember { mutableStateOf(Instant.now()) }
-                LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
-                val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
-                var page by rememberSaveable { mutableStateOf("journey") }
-                val tabsRequester = remember { BringIntoViewRequester() }
-                val tabs = listOf("journey" to "Путь", "map" to "Карта", "diary" to "Дневник", "health" to "Шаги и доступ")
-                LaunchedEffect(page) { tabsRequester.bringIntoView() }
-                Column(Modifier.bringIntoViewRequester(tabsRequester)) {
-                    tabs.chunked(2).forEach { row ->
-                        Row(Modifier.fillMaxWidth()) {
-                            row.forEach { (id, label) ->
-                            TextButton(onClick = { page = id }, modifier = Modifier.weight(1f)) {
-                                Text(label, fontWeight = if (page == id) FontWeight.Bold else FontWeight.Normal,
-                                    textAlign = TextAlign.Center, maxLines = 2)
-                            }
-                            }
+    val requestPermissions: () -> Unit = {
+        actionError = false
+        try { permissionLauncher.launch(HealthConnectStepsGateway.PERMISSIONS) }
+        catch (_: ActivityNotFoundException) { actionError = true }
+        catch (_: SecurityException) { actionError = true }
+    }
+    val current = state
+    if (current is JourneyState.Active) {
+        ActiveExpedition(current, access, actionError, requestPermissions, ::open,
+            model::refresh, model::checkAccess, model::markEventViewed)
+    } else {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            when (current) {
+                JourneyState.Loading -> CircularProgressIndicator()
+                JourneyState.NotStarted -> {
+                    Text("Настройка экспедиции", style = MaterialTheme.typography.titleLarge)
+                    Text("Выберите режим и темп до старта. Отсчёт шагов начнётся с момента нажатия «Начать экспедицию».")
+                    JourneyMode.entries.forEach { mode ->
+                        Row {
+                            RadioButton(selected = selectedModeName == mode.name, onClick = { selectedModeName = mode.name })
+                            Text(if (mode == JourneyMode.WAGER) "Пари на 80 календарных дней" else "Свободное путешествие без срока")
                         }
                     }
+                    if (selectedModeName == JourneyMode.WAGER.name) Text("Срок рассчитывается по часовому поясу на момент старта. Опоздание не удаляет путь или дневник.")
+                    Text("Темп, шагов в день", style = MaterialTheme.typography.titleMedium)
+                    PACES.forEach { pace ->
+                        Row {
+                            RadioButton(selected = selectedPace == pace, onClick = { selectedPace = pace })
+                            Text("${formatSteps(pace.toLong())} шагов")
+                        }
+                    }
+                    Text("Полный маршрут: ${formatSteps(selectedPace * 80L)} шагов · Лондон → Суэц: ${formatSteps(selectedPace * 7L)} шагов.")
+                    Text("Ближайшее событие: «За лондонскими крышами» — ${formatSteps(scaledThreshold(1_000, selectedPace * 80L))} шагов.")
+                    Text("Цель фиксируется при старте; будущая смена темпа не передвинет текущую экспедицию.")
+                    StepAccessPanel(access, actionError,
+                        request = requestPermissions, open = ::open, retry = model::checkAccess)
+                    Button(onClick = { model.start(JourneyMode.valueOf(selectedModeName), selectedPace) }) {
+                        Text("Начать экспедицию")
+                    }
+                    Text("Можно начать без доступа. Подключите шаги позже: выбранные режим и темп сохранятся.")
                 }
+                JourneyState.StorageError -> {
+                    Text("Не удалось прочитать или сохранить экспедицию. Существующая история не сброшена.")
+                    Button(onClick = model::reload) { Text("Повторить чтение сохранения") }
+                }
+                is JourneyState.Active -> Unit
+            }
+            TextButton(onClick = { showPrestartDiagnostics = !showPrestartDiagnostics }) {
+                Text(if (showPrestartDiagnostics) "Скрыть диагностику шагов" else "Диагностика шагов")
+            }
+            if (showPrestartDiagnostics) DiagnosticsPanel()
+        }
+    }
+}
+
+@Composable
+private fun ActiveExpedition(
+    current: JourneyState.Active,
+    access: StepAccess,
+    actionError: Boolean,
+    requestPermissions: () -> Unit,
+    open: (Intent) -> Unit,
+    onRefresh: () -> Unit,
+    onCheckAccess: () -> Unit,
+    onEventViewed: (String) -> Unit,
+) {
+    val expedition = current.expedition
+    val newEvent = expedition.stops.firstOrNull { it.id in current.unviewedEventIds }
+    var now by remember { mutableStateOf(Instant.now()) }
+    LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
+    val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
+    var page by rememberSaveable { mutableStateOf("journey") }
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 if (newEvent != null && page != "diary") {
                     ElevatedCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Новое событие · ${newEvent.name}", style = MaterialTheme.typography.titleMedium)
                             Text(newEvent.diary)
-                            Button(onClick = { model.markEventViewed(newEvent.id) }) { Text("Прочитано") }
+                            Button(onClick = { onEventViewed(newEvent.id) }) { Text("Прочитано") }
                             if (current.eventActionError) {
                                 Text("Не удалось сохранить отметку. Запись останется новой; попробуйте ещё раз.",
                                     color = MaterialTheme.colorScheme.error)
@@ -138,7 +156,7 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                     }
                 }
                 when (page) {
-                    "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, model::refresh)
+                    "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, onRefresh)
                     "map" -> FirstLegMap(expedition, onOpenDiary = { page = "diary" })
                     "diary" -> {
                         Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
@@ -151,7 +169,7 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                                     if (stop.id in current.unviewedEventIds) {
                                         Text("Новая запись", color = MaterialTheme.colorScheme.primary,
                                             style = MaterialTheme.typography.labelLarge)
-                                        OutlinedButton(onClick = { model.markEventViewed(stop.id) }) {
+                                        OutlinedButton(onClick = { onEventViewed(stop.id) }) {
                                             Text("Отметить прочитанной")
                                         }
                                         if (current.eventActionError) {
@@ -173,26 +191,16 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                         }
                         if (expedition.lastReadAt != null) Text("Последняя успешная сверка: ${format.format(expedition.lastReadAt)}")
                         StepAccessPanel(access, actionError,
-                            request = {
-                                actionError = false
-                                try { permissionLauncher.launch(HealthConnectStepsGateway.PERMISSIONS) }
-                                catch (_: ActivityNotFoundException) { actionError = true }
-                                catch (_: SecurityException) { actionError = true }
-                            }, open = ::open, retry = model::checkAccess)
+                            request = requestPermissions, open = open, retry = onCheckAccess)
                         if (current.syncing) Text("Сверяем дневные шаги…")
-                        OutlinedButton(onClick = model::refresh, enabled = !current.syncing) { Text("Сверить шаги") }
+                        OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
                         HorizontalDivider()
                         DiagnosticsPanel()
                     }
                 }
             }
         }
-        if (state !is JourneyState.Active) {
-            TextButton(onClick = { showPrestartDiagnostics = !showPrestartDiagnostics }) {
-                Text(if (showPrestartDiagnostics) "Скрыть диагностику шагов" else "Диагностика шагов")
-            }
-            if (showPrestartDiagnostics) DiagnosticsPanel()
-        }
+        JourneyNavBar(page, current.unviewedEventIds.isNotEmpty(), onSelect = { page = it })
     }
 }
 

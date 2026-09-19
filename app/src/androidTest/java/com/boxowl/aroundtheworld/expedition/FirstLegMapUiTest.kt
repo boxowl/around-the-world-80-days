@@ -52,7 +52,7 @@ class FirstLegMapUiTest {
             }
             assertTrue("Map segment missing: $visible", "Участок: Дувр → Кале" in visible)
             assertTrue("Diary tab missing: $visible", "Дневник" in visible)
-            assertTrue("Diagnostics tab missing: $visible", "Шаги и доступ" in visible)
+            assertTrue("Settings tab missing: $visible", "Настройки" in visible)
             val diaryTab = findText(automation.rootInActiveWindow, "Дневник")
             assertTrue("Diary tab did not click", diaryTab?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
             var diary = ""

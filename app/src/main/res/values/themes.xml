@@ -1,8 +1,8 @@
 <resources>
-    <style name="Theme.Expedition" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.Expedition" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">serif</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:windowBackground">#F5EEDD</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">#05080C</item>
     </style>
 </resources>

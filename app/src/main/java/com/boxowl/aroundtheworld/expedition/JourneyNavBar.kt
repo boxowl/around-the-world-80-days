@@ -1,7 +1,6 @@
 package com.boxowl.aroundtheworld.expedition
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.HorizontalDivider
@@ -14,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 private val navPaper = Color(0xFFFFF9EC)
@@ -37,7 +38,7 @@ internal fun JourneyNavBar(
     hasUnviewedEvents: Boolean,
     onSelect: (String) -> Unit,
 ) {
-    Column(Modifier.navigationBarsPadding()) {
+    Column {
         HorizontalDivider(thickness = 1.dp, color = navInk.copy(alpha = 0.15f))
         NavigationBar(containerColor = navPaper, tonalElevation = 0.dp) {
             journeyNavItems.forEach { item ->
@@ -47,7 +48,11 @@ internal fun JourneyNavBar(
                     icon = {
                         val badge = item.id == "diary" && hasUnviewedEvents
                         if (badge) {
-                            BadgedBox(badge = { Badge() }) {
+                            BadgedBox(badge = {
+                                Badge(Modifier.semantics {
+                                    contentDescription = "Есть непрочитанные записи дневника"
+                                })
+                            }) {
                                 Icon(item.icon, contentDescription = null)
                             }
                         } else {

@@ -19,6 +19,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
@@ -27,7 +29,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.boxowl.aroundtheworld.ExpeditionMuted
+import com.boxowl.aroundtheworld.ExpeditionSurface
+import com.boxowl.aroundtheworld.ExpeditionText
 import com.boxowl.aroundtheworld.PermissionsRationaleActivity
 import com.boxowl.aroundtheworld.health.DiagnosticsPanel
 import com.boxowl.aroundtheworld.health.HealthConnectStepsGateway
@@ -85,7 +91,8 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
             when (current) {
                 JourneyState.Loading -> CircularProgressIndicator()
                 JourneyState.NotStarted -> {
-                    Text("Настройка экспедиции", style = MaterialTheme.typography.titleLarge)
+                    Text("Настройка экспедиции", style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
                     Text("Выберите режим и темп до старта. Отсчёт шагов начнётся с момента нажатия «Начать экспедицию».")
                     JourneyMode.entries.forEach { mode ->
                         Row {
@@ -138,32 +145,52 @@ private fun ActiveExpedition(
 ) {
     val expedition = current.expedition
     val newEvent = expedition.stops.firstOrNull { it.id in current.unviewedEventIds }
+    val owner = LocalLifecycleOwner.current
     var now by remember { mutableStateOf(Instant.now()) }
-    LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
+    // The clock tick (and thus scene animations) stops while the app is not visible.
+    LaunchedEffect(expedition.startedAt, owner) {
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) { now = Instant.now(); delay(30_000) }
+        }
+    }
     val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
     var page by rememberSaveable { mutableStateOf("journey") }
     var dismissedEventIds by rememberSaveable { mutableStateOf(listOf<String>()) }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
+            val shownEvent = newEvent?.takeIf { page != "diary" && it.id !in dismissedEventIds }
             when (page) {
                 "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, onRefresh)
                 "map" -> Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    if (shownEvent != null) {
+                        NewEventNotification(
+                            name = shownEvent.name,
+                            onOpen = { page = "diary" },
+                            onDismiss = { dismissedEventIds = dismissedEventIds + shownEvent.id },
+                        )
+                    }
                     FirstLegMap(expedition, onOpenDiary = { page = "diary" })
                 }
                 "diary" -> Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
-                    Text("Открытые записи остаются здесь, даже если источник шагов позже скорректирует итог.")
+                    Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                    Text("Открытые записи остаются здесь, даже если источник шагов позже скорректирует итог.",
+                        color = ExpeditionMuted)
                     expedition.stops.filter { it.id in expedition.unlocked }.forEach { stop ->
-                        ElevatedCard(Modifier.fillMaxWidth()) {
+                        ElevatedCard(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = ExpeditionSurface),
+                        ) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(stop.name, style = MaterialTheme.typography.titleMedium)
-                                Text(stop.diary)
+                                Text(stop.name, style = MaterialTheme.typography.titleMedium,
+                                    fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                                Text(stop.diary, color = ExpeditionText.copy(alpha = 0.9f))
                                 if (stop.id in current.unviewedEventIds) {
                                     Text("Новая запись", color = MaterialTheme.colorScheme.primary,
                                         style = MaterialTheme.typography.labelLarge)
@@ -183,7 +210,15 @@ private fun ActiveExpedition(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("Настройки", style = MaterialTheme.typography.titleLarge)
+                    if (shownEvent != null) {
+                        NewEventNotification(
+                            name = shownEvent.name,
+                            onOpen = { page = "diary" },
+                            onDismiss = { dismissedEventIds = dismissedEventIds + shownEvent.id },
+                        )
+                    }
+                    Text("Настройки", style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
                     Text("${if (expedition.mode == JourneyMode.FREE) "Свободное путешествие" else "Пари на 80 дней"} · темп ${formatSteps(expedition.paceStepsPerDay.toLong())} шагов/день")
                     Text("Старт: ${format.format(expedition.startedAt)} · пояс ${expedition.zone.id}")
                     Text("День считается в часовом поясе старта. Первый день — с момента старта.")
@@ -204,8 +239,7 @@ private fun ActiveExpedition(
                     DiagnosticsPanel()
                 }
             }
-            val shownEvent = newEvent?.takeIf { page != "diary" && it.id !in dismissedEventIds }
-            if (shownEvent != null) {
+            if (page == "journey" && shownEvent != null) {
                 NewEventNotification(
                     name = shownEvent.name,
                     onOpen = { page = "diary" },

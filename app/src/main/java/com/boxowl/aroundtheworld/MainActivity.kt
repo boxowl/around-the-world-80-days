@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -43,12 +42,8 @@ private fun ExpeditionScreen() {
         onSurfaceVariant = ExpeditionMuted,
         outline = ExpeditionLine,
     )) {
-        Column(
-            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-                .safeDrawingPadding(),
-        ) {
+        Surface(Modifier.fillMaxSize().safeDrawingPadding()) {
             ExpeditionPanel()
-
         }
     }
 }

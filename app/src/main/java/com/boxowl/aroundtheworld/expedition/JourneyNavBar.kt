@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.boxowl.aroundtheworld.ExpeditionBackground
 import com.boxowl.aroundtheworld.ExpeditionGold
@@ -64,7 +65,7 @@ internal fun JourneyNavBar(
                             Icon(item.icon, contentDescription = null)
                         }
                     },
-                    label = { Text(item.label) },
+                    label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = ExpeditionGold,
                         selectedTextColor = ExpeditionGold,

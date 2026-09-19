@@ -69,6 +69,17 @@ class JourneyScenesTest {
         assertNull(negative.toIndex)
     }
 
+    @Test fun heroStaysAtSegmentFractionExceptRouteEnd() {
+        val count = JOURNEY_SCENES.size
+        assertEquals(0f, heroFractionAt(0f, count), 1e-6f)
+        assertEquals(0f, heroFractionAt(2f, count), 1e-6f)
+        assertEquals(0.5f, heroFractionAt(2.5f, count), 1e-6f)
+        assertEquals(0.98f, heroFractionAt(2.98f, count), 1e-6f)
+        assertEquals(1f, heroFractionAt(9f, count), 1e-6f)
+        assertEquals(1f, heroFractionAt(15f, count), 1e-6f)
+        assertEquals(0f, heroFractionAt(-1f, count), 1e-6f)
+    }
+
     @Test fun celestialPositionStaysInsideCanvas() {
         for (minutes in 0 until 24 * 60 step 37) {
             val time = LocalTime.of(minutes / 60, minutes % 60)

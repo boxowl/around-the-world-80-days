@@ -190,6 +190,14 @@ internal fun celestialPosition(time: LocalTime, phase: DayPhase): Offset {
     }
 }
 
+/** Hero position inside a scene: in-segment fraction everywhere, route end only at Suez. */
+internal fun heroFractionAt(position: Float, sceneCount: Int): Float {
+    val maxIndex = (sceneCount - 1).toFloat()
+    if (position >= maxIndex) return 1f
+    val clamped = position.coerceAtLeast(0f)
+    return clamped - clamped.toInt()
+}
+
 /** Decorative procedural scene. All numbers and labels stay in text elements outside the canvas. */
 @Composable
 internal fun JourneySceneCanvas(
@@ -213,10 +221,13 @@ internal fun JourneySceneCanvas(
     val blend = sceneBlendAt(position, JOURNEY_SCENES.size)
     val from = JOURNEY_SCENES[blend.fromIndex]
     val to = blend.toIndex?.let(JOURNEY_SCENES::get)
-    val description = if (to != null && blend.fraction > 0.02f) {
-        "Сцена пути: от ${from.label} к ${to.label}"
+    val targetBlend = sceneBlendAt(target, JOURNEY_SCENES.size)
+    val targetFrom = JOURNEY_SCENES[targetBlend.fromIndex]
+    val targetTo = targetBlend.toIndex?.let(JOURNEY_SCENES::get)
+    val description = if (targetTo != null) {
+        "Сцена пути: переход ${targetFrom.label} → ${targetTo.label}"
     } else {
-        "Сцена пути: ${from.label}: ${from.details}"
+        "Сцена пути: ${targetFrom.label}: ${targetFrom.details}"
     }
     Canvas(modifier.semantics { contentDescription = description }) {
         val pal = if (to == null) palette.adjustedFor(from)
@@ -239,8 +250,7 @@ internal fun JourneySceneCanvas(
                 drawSceneLayer(to, layer, pal, (1f - f) * parallax, f)
             }
         }
-        val heroFraction = if (to == null) 1f else f
-        hero(mix(0.24f, 0.76f, heroFraction) * w, size.height * 0.8f, pal)
+        hero(mix(0.24f, 0.76f, heroFractionAt(position, JOURNEY_SCENES.size)) * w, size.height * 0.8f, pal)
     }
 }
 
@@ -580,6 +590,27 @@ private fun DrawScope.railing(x0: Float, x1: Float, gy: Float, hgt: Float, color
     }
 }
 
+/** Railway embankment: a raised trapezoid body with a track line and ties on top. */
+private fun DrawScope.embankment(x0: Float, x1: Float, gy: Float, hgt: Float, body: Color, track: Color) {
+    val slope = hgt * 0.9f
+    val path = Path().apply {
+        moveTo(x0, gy)
+        lineTo(x0 + slope, gy - hgt)
+        lineTo(x1 - slope, gy - hgt)
+        lineTo(x1, gy)
+        close()
+    }
+    drawPath(path, body)
+    val sw = size.height * 0.006f
+    drawLine(track, Offset(x0 + slope * 0.7f, gy - hgt - hgt * 0.1f),
+        Offset(x1 - slope * 0.7f, gy - hgt - hgt * 0.1f), strokeWidth = sw)
+    var x = x0 + slope
+    while (x < x1 - slope * 0.7f) {
+        drawLine(track, Offset(x, gy - hgt), Offset(x, gy - hgt - hgt * 0.18f), strokeWidth = sw * 0.8f)
+        x += size.width * 0.035f
+    }
+}
+
 private fun DrawScope.arcade(x0: Float, x1: Float, gy: Float, hgt: Float, color: Color) {
     val n = 6
     val wd = (x1 - x0) / n
@@ -855,7 +886,7 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
                 arcade(0.08f * w + dx, 0.55f * w + dx, gy, h * 0.13f, near)
-                railing(0.55f * w + dx, 0.98f * w + dx, gy, h * 0.05f, near)
+                embankment(0.55f * w + dx, 1.05f * w + dx, gy, h * 0.07f, lerp(p.near, p.mid, 0.25f).fade(a), near)
             }
         }
         SceneKind.BRINDISI -> when (layer) {

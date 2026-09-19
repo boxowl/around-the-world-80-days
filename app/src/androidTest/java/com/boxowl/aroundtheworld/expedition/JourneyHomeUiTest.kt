@@ -37,7 +37,16 @@ class JourneyHomeUiTest {
             var visible = ""
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
-                visible = collectText(instrumentation.uiAutomation.rootInActiveWindow).replace('\u00a0', ' ')
+                val accumulated = StringBuilder(collectText(instrumentation.uiAutomation.rootInActiveWindow))
+                // The page scrolls; off-screen cards are absent from the accessibility tree.
+                for (scroll in 0 until 8) {
+                    if ("Кале" in accumulated) break
+                    if (!scrollForward(instrumentation.uiAutomation.rootInActiveWindow)) break
+                    instrumentation.waitForIdleSync()
+                    Thread.sleep(150)
+                    accumulated.append(' ').append(collectText(instrumentation.uiAutomation.rootInActiveWindow))
+                }
+                visible = accumulated.toString().replace('\u00a0', ' ')
                 if ("Лондон → Суэц" in visible && "4 500" in visible && "Кале" in visible) break
                 Thread.sleep(200)
             }
@@ -47,6 +56,14 @@ class JourneyHomeUiTest {
         } finally {
             activity.finish()
         }
+    }
+
+    private fun scrollForward(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+        if (node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD }) {
+            return node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+        }
+        return (0 until node.childCount).any { scrollForward(node.getChild(it)) }
     }
 
     private fun collectText(node: AccessibilityNodeInfo?): String {

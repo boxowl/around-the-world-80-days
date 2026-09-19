@@ -1,42 +1,47 @@
 package com.boxowl.aroundtheworld.expedition
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.boxowl.aroundtheworld.ExpeditionGold
+import com.boxowl.aroundtheworld.ExpeditionMuted
+import com.boxowl.aroundtheworld.ExpeditionText
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val nightBg = Color(0xFF0E1B26)
-private val nightCard = Color(0xFF1A2B3D)
-private val nightLine = Color(0xFF35506A)
-private val nightText = Color(0xFFF3EAD3)
-private val nightMuted = Color(0xFFB9C6D2)
-private val nightAccent = Color(0xFFE8975A)
-private val nightBadgeText = Color(0xFF241505)
-
-/** The scene is decorative. Every number and route label comes from the expedition snapshot. */
+/**
+ * «Путь» home page (P06): edge-to-edge scene dissolving into the dark shell,
+ * then a centred reading hierarchy — day, one big gold number (steps today),
+ * the leg line, an italic serif line and a secondary chapter-progress line.
+ * Every number and route label comes from the expedition snapshot; the scene
+ * stays decorative. No-data is never shown as zero.
+ */
 @Composable
 internal fun JourneyHome(
     expedition: Expedition,
@@ -52,97 +57,140 @@ internal fun JourneyHome(
     val hasKnownProgress = expedition.dailySteps.isNotEmpty()
     val next = expedition.nextStop
     val projection = FirstLegMapProjection.from(expedition)
+    val current = projection.stops[projection.currentIndex].stop
     val localTime = now.atZone(expedition.zone).toLocalTime()
-    val largeFont = LocalConfiguration.current.fontScale >= 1.3f
-    Column(
-        Modifier.background(nightBg, RoundedCornerShape(20.dp)).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically) {
-            Text("Вокруг света\nза 80 дней", color = nightText, fontFamily = FontFamily.Serif,
-                style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("ДЕНЬ ${expedition.dayNumber(now)}", color = nightBadgeText, fontWeight = FontWeight.Bold,
-                modifier = Modifier.background(nightAccent, RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 8.dp))
-        }
-        if (!largeFont) {
-            JourneySceneCanvas(projection, localTime,
-                Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(16.dp)))
-        } else {
-            val sceneNote = when {
-                projection.knownSteps == null ->
-                    "Показана стартовая сцена Лондона; положение на маршруте пока не подтверждено."
-                projection.nextIndex == null -> "Показана сцена Суэца: первая глава пройдена."
-                projection.fractionToNext > 0f ->
-                    "Показан переход сцены: ${projection.stops[projection.currentIndex].stop.name} → " +
-                        "${projection.stops[projection.nextIndex].stop.name}."
-                else -> "Показана сцена: ${projection.stops[projection.currentIndex].stop.name}."
+    val background = MaterialTheme.colorScheme.background
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val sceneHeight = maxHeight * 0.58f
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.fillMaxWidth().height(sceneHeight)) {
+                JourneySceneCanvas(projection, localTime, Modifier.fillMaxSize())
+                // The foreground dissolves into the shell: no visible picture edge.
+                Box(
+                    Modifier.fillMaxWidth().height(sceneHeight * 0.32f)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                0f to Color.Transparent,
+                                1f to background,
+                            ),
+                        ),
+                )
             }
-            Text("Сцена пути заменена текстом при крупном шрифте. $sceneNote",
-                color = nightMuted, style = MaterialTheme.typography.bodySmall)
-        }
-        Text("ПЕРВАЯ ГЛАВА", color = nightAccent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        Text("Лондон → Суэц", color = nightText, fontFamily = FontFamily.Serif,
-            style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        if (hasKnownProgress) {
-            LinearProgressIndicator(
-                progress = { expedition.firstLegSteps.toFloat() / expedition.firstLegGoal },
-                modifier = Modifier.fillMaxWidth().height(8.dp), color = nightAccent,
-                trackColor = nightLine,
-            )
-            Text("Известный путь: ${formatJourneySteps(expedition.firstLegSteps)} из ${formatJourneySteps(expedition.firstLegGoal)} шагов до Суэца",
-                color = nightText, style = MaterialTheme.typography.bodyMedium)
-        } else {
-            Text("Прогресс участка пока неизвестен · цель ${formatJourneySteps(expedition.firstLegGoal)} шагов",
-                color = nightText, style = MaterialTheme.typography.bodyMedium)
-        }
-        OutlinedCard(Modifier.fillMaxWidth(),
-            colors = CardDefaults.outlinedCardColors(containerColor = nightCard),
-            border = BorderStroke(1.dp, nightLine)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Шаги сегодня · ${today.format(DateTimeFormatter.ofPattern("d MMMM", Locale.forLanguageTag("ru-RU")))}",
-                    color = nightMuted, style = MaterialTheme.typography.labelLarge)
-                Text(stepsToday?.let(::formatJourneySteps) ?: "Нет данных", color = nightText,
-                    style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text(when {
-                    stepsToday == null -> "Итог за сегодня ещё не получен. Это не ноль шагов."
-                    stale -> "Последний известный итог; текущая сверка не удалась."
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    "ДЕНЬ ${expedition.dayNumber(now)}",
+                    color = ExpeditionText.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelMedium,
+                    letterSpacing = 4.sp,
+                )
+                if (stepsToday != null) {
+                    Text(
+                        formatJourneySteps(stepsToday),
+                        color = ExpeditionGold,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 60.sp,
+                        lineHeight = 64.sp,
+                    )
+                    Text(
+                        "шагов сегодня",
+                        color = ExpeditionGold.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.labelMedium,
+                        letterSpacing = 2.sp,
+                    )
+                } else {
+                    Text(
+                        "—",
+                        color = ExpeditionGold,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 60.sp,
+                        lineHeight = 64.sp,
+                    )
+                    Text(
+                        "Нет данных за сегодня — это не ноль",
+                        color = ExpeditionMuted,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Глава 1 · Лондон → Суэц",
+                    color = ExpeditionMuted,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    when {
+                        next == null -> "Суэц достигнут — первая глава пройдена"
+                        projection.nextIndex != null && projection.fractionToNext > 0f ->
+                            "В пути: ${current.name} → ${next.name}"
+                        else -> current.name
+                    },
+                    color = ExpeditionText,
+                    fontFamily = FontFamily.Serif,
+                    fontStyle = FontStyle.Italic,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    when {
+                        next == null -> "Путь главы: ${formatJourneySteps(expedition.firstLegSteps)} " +
+                            "из ${formatJourneySteps(expedition.firstLegGoal)} шагов"
+                        hasKnownProgress -> "До ${next.name} ещё " +
+                            "${formatJourneySteps(next.threshold - expedition.totalSteps)} шагов · " +
+                            "пройдено ${formatJourneySteps(expedition.firstLegSteps)} " +
+                            "из ${formatJourneySteps(expedition.firstLegGoal)}"
+                        else -> "Путь главы пока неизвестен · цель " +
+                            "${formatJourneySteps(expedition.firstLegGoal)} шагов"
+                    },
+                    color = ExpeditionMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(4.dp))
+                val syncError = when (sync) {
+                    SyncResult.PermissionRequired ->
+                        "Нет доступа к шагам. Сохранённый путь остаётся; восстановление — во вкладке «Настройки»."
+                    SyncResult.Unavailable ->
+                        "Health Connect недоступен. Сохранённый путь остаётся."
+                    SyncResult.UpdateRequired ->
+                        "Health Connect требует обновления. Сохранённый путь остаётся."
+                    SyncResult.ReadError ->
+                        "Не удалось прочитать шаги. Сохранённый путь остаётся."
+                    else -> null
+                }
+                val status = when {
+                    stepsToday == null || syncError != null -> null
+                    stale -> "Показан последний известный итог: текущая сверка недоступна."
                     syncing -> "Сверяем с Health Connect…"
-                    sync is SyncResult.Updated && sync.gaps > 0 -> "Сохранённый итог; при пробелах сверки он мог не обновиться."
-                    else -> "Сохранённый итог за календарный день экспедиции."
-                }, color = nightMuted, style = MaterialTheme.typography.bodySmall)
+                    sync is SyncResult.Updated && sync.gaps > 0 ->
+                        "Нет итога для ${sync.gaps} дневных окон; путь может быть неполным."
+                    else -> null
+                }
+                if (status != null) {
+                    Text(status, color = ExpeditionMuted, style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center)
+                }
+                if (syncError != null) {
+                    Text(syncError, color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                }
+                TextButton(onClick = onRefresh, enabled = !syncing) {
+                    Icon(JourneyIcons.Refresh, contentDescription = null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (syncing) "Сверяем…" else "Сверить шаги")
+                }
+                Spacer(Modifier.height(12.dp))
             }
         }
-        OutlinedCard(Modifier.fillMaxWidth(),
-            colors = CardDefaults.outlinedCardColors(containerColor = nightCard),
-            border = BorderStroke(1.dp, nightLine)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Следующая остановка", color = nightMuted, style = MaterialTheme.typography.labelLarge)
-                Text(next?.name ?: "Суэц достигнут", color = nightText,
-                    style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(if (next == null) "Первая глава пройдена."
-                    else if (hasKnownProgress) "Ещё ${formatJourneySteps(next.threshold - expedition.totalSteps)} шагов по известным итогам"
-                    else "Порог ${formatJourneySteps(next.threshold)} шагов; текущий путь пока неизвестен",
-                    color = nightMuted, style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-        when (sync) {
-            is SyncResult.Updated -> {
-                if (sync.gaps > 0) Text("Для ${sync.gaps} дневных окон нет итога. Известный путь может быть неполным.",
-                    color = nightMuted)
-                if (sync.limited) Text("Ранние дни вне окна сверки; сохранённые итоги не удалены.",
-                    color = nightMuted)
-            }
-            SyncResult.PermissionRequired -> Text("Нет доступа к шагам. Сохранённый путь остаётся.", color = nightText)
-            SyncResult.Unavailable -> Text("Health Connect недоступен. Сохранённый путь остаётся.", color = nightText)
-            SyncResult.UpdateRequired -> Text("Health Connect требует обновления. Сохранённый путь остаётся.", color = nightText)
-            SyncResult.ReadError -> Text("Не удалось прочитать шаги. Сохранённый путь остаётся.", color = nightText)
-            null -> Unit
-        }
-        if (syncing) Text("Сверяем дневные шаги…", color = nightMuted)
-        Button(onClick = onRefresh, enabled = !syncing) { Text("Сверить шаги") }
-        Text("День считается в часовом поясе старта: ${expedition.zone.id}. Первый день — с момента старта.",
-            color = nightMuted, style = MaterialTheme.typography.bodySmall)
     }
 }
 

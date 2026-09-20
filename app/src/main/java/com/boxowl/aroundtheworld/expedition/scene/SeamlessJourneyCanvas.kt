@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,8 +25,7 @@ import com.boxowl.aroundtheworld.expedition.sky
 import com.boxowl.aroundtheworld.expedition.stars
 import com.boxowl.aroundtheworld.expedition.DayPhase
 import java.time.LocalTime
-import kotlin.math.abs
-import kotlin.math.exp
+import kotlinx.coroutines.flow.first
 
 /**
  * Seamless journey scene (P07): one continuous side-scrolling world, a camera
@@ -33,12 +33,13 @@ import kotlin.math.exp
  * is invented here — the position comes from the confirmed expedition snapshot;
  * animations only catch the view up to it.
  *
- * Animation policy (owner decision): first composition starts already at the
- * saved position; small updates settle briefly (≈250–750 ms), big jumps are
- * capped at 2 s; backward corrections use the same function without rebuilding
- * the world; reduced-motion snaps instantly. The chase is frame-driven (one
- * persistent loop), so a continuously moving target — the debug auto pass —
- * cannot starve it, and it pauses whenever frames stop (background/tab switch).
+ * Animation policy (owner decision, P08): first composition starts already at
+ * the saved position; a target change starts a [ChaseAnimation] plan from the
+ * currently displayed value that reaches the target exactly within 2 s (250 ms
+ * + 1.75 s per route position); backward corrections use the same function
+ * without rebuilding the world; reduced-motion snaps instantly. Once settled,
+ * the frame loop sleeps until the target changes again — in a still world
+ * nothing moves and nothing is redrawn.
  */
 @Composable
 internal fun SeamlessJourneyCanvas(
@@ -65,24 +66,26 @@ internal fun SeamlessJourneyCanvas(
     val position = remember { Animatable(targetPosition) }
     val latestTarget by rememberUpdatedState(targetPosition)
     LaunchedEffect(reducedMotion) {
-        var previousFrame = withFrameNanos { it }
-        var tau = 0.25f
-        var lastTarget = latestTarget
         while (true) {
-            val now = withFrameNanos { it }
-            val dt = ((now - previousFrame) / 1_000_000_000f).coerceIn(0f, 0.1f)
-            previousFrame = now
             val target = latestTarget
-            if (target != lastTarget) {
-                // Settle ≈95 % within 250 ms + 1.75 s per route position, capped at 2 s.
-                val distance = abs(target - position.value)
-                tau = (250f + distance * 1750f).coerceAtMost(2000f) / 3000f
-                lastTarget = target
+            if (reducedMotion || position.value == target) {
+                if (position.value != target) position.snapTo(target)
+                // At rest: sleep until a new target arrives instead of polling frames.
+                snapshotFlow { latestTarget }.first { it != target }
+            } else {
+                // New plan from the currently displayed value; a further target
+                // change abandons it and replans from wherever the display is.
+                val from = position.value
+                val startNanos = withFrameNanos { it }
+                var running = true
+                while (running) {
+                    val now = withFrameNanos { it }
+                    if (latestTarget != target) break
+                    val next = ChaseAnimation.chaseValueAt(from, target, (now - startNanos) / 1_000_000)
+                    position.snapTo(next)
+                    running = next != target
+                }
             }
-            val value = position.value
-            val next = if (reducedMotion) target
-                else value + (target - value) * (1f - exp(-dt / tau))
-            if (abs(next - value) > 1e-6f) position.snapTo(next)
         }
     }
     val layout = FIRST_LEG_LAYOUT

@@ -96,7 +96,11 @@ internal fun SeamlessJourneyCanvas(
                     val dt = ((now - previousNanos) / 1_000_000_000f).coerceIn(0f, 0.1f)
                     previousNanos = now
                     walkPhase.floatValue = WalkCycle.advancePhase(walkPhase.floatValue, after - before)
-                    gait.floatValue = WalkCycle.gaitAt(gait.floatValue, (after - before) / dt.coerceAtLeast(1e-3f), dt)
+                    // Aboard the ship (DECK) the hero stands at ease — the water,
+                    // shore and hull sliding past carry the motion instead.
+                    val strideSpeed = if (TerrainProfile.supportAt(layout, after) == TerrainProfile.Support.DECK) 0f
+                        else (after - before) / dt.coerceAtLeast(1e-3f)
+                    gait.floatValue = WalkCycle.gaitAt(gait.floatValue, strideSpeed, dt)
                     if (latestTarget != target) {
                         startNanos = now // replan from here, this frame already counted
                         break

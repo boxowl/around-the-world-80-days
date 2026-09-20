@@ -8,15 +8,29 @@ import kotlin.math.sin
 /**
  * Continuous walking surface (P07, relief enriched in P08): the hero's feet,
  * the ground fill and every ground-standing object sample the same profile, so
- * the hero never floats or sinks. Each stop pins a level once; levels join by
- * smoothstep (zero slope at anchors). Land segments add multi-frequency hills
- * (three integer harmonics with per-segment amplitude jitter) that vanish —
- * value AND slope — near every anchor, so stops stay on calm flat ground and
- * groundYAt/groundSlopeAt remain analytic and continuous everywhere.
+ * the hero never floats or sinks. Each stop pins a level once. Land segments
+ * add multi-frequency hills (three integer harmonics with per-segment amplitude
+ * jitter) that vanish — value AND slope — near every anchor. Level changes are
+ * localized ledges (P08): the Brindisi pier stays flat stone until a short
+ * gangway ramp climbs to deck level right before a8; the deck is truly flat
+ * until a short lip steps down onto the Suez bank at a9. [supportAt] classifies
+ * what the hero stands on, so the stride can stop aboard the ship.
  */
 internal object TerrainProfile {
     /** Ground level (canvas-height fraction, y grows downward) at each stop anchor. */
     val LEVELS = floatArrayOf(0.68f, 0.68f, 0.68f, 0.68f, 0.68f, 0.68f, 0.68f, 0.68f, 0.83f, 0.78f)
+
+    /** What the hero stands on at a world position (P08). */
+    enum class Support { LAND, PIER_RAMP, DECK, BANK }
+
+    private const val LAND_LEVEL = 0.68f
+    private const val DECK_LEVEL = 0.83f
+
+    /** Gangway length in world units; the ramp ends exactly at the deck anchor. */
+    const val RAMP_LEN = 0.5f
+
+    /** Fraction of the sea segment the deck stays flat before the lip down to the bank. */
+    private const val DECK_FLIP_T = 0.85f
 
     private const val HILL_AMP1 = 0.014f
     private const val HILL_AMP2 = 0.0065f
@@ -24,10 +38,44 @@ internal object TerrainProfile {
     private const val TAPER = 0.18f
     private const val TWO_PI = (2 * PI).toFloat()
 
+    /** Anchor index where the deck level starts (Brindisi → Mediterranean). */
+    private fun deckAnchor(): Int = LEVELS.indexOfFirst { it == DECK_LEVEL }
+
+    /** World X where the boarding gangway starts climbing. */
+    fun rampStartX(layout: WorldLayout): Float = layout.anchorX(deckAnchor()) - RAMP_LEN
+
+    fun supportAt(layout: WorldLayout, worldX: Float): Support {
+        val deckStart = layout.anchorX(deckAnchor())
+        val bankStart = layout.anchorX(deckAnchor() + 1)
+        return when {
+            worldX >= bankStart -> Support.BANK
+            worldX >= deckStart -> Support.DECK
+            worldX >= deckStart - RAMP_LEN -> Support.PIER_RAMP
+            else -> Support.LAND
+        }
+    }
+
     private fun smooth(t: Float) = t * t * (3f - 2f * t)
     private fun smoothDeriv(t: Float) = 6f * t * (1f - t)
-    private fun isLandStop(index: Int) = LEVELS[index] == LEVELS[0]
+    private fun isLandStop(index: Int) = LEVELS[index] == LAND_LEVEL
     private fun hillsAllowed(segment: Int) = isLandStop(segment) && isLandStop(segment + 1)
+
+    /**
+     * Localized level change: flat until [t0], then a smoothstep to the next
+     * level. Both value and slope vanish at t0, keeping the profile C1.
+     */
+    private fun ledge(t: Float, t0: Float): Float =
+        if (t <= t0) 0f else smooth(((t - t0) / (1f - t0)).coerceIn(0f, 1f))
+
+    private fun ledgeDeriv(t: Float, t0: Float): Float =
+        if (t <= t0 || t >= 1f) 0f else smoothDeriv((t - t0) / (1f - t0)) / (1f - t0)
+
+    /** Ledge start for a level-changing segment; -1 when the segment is flat. */
+    private fun ledgeStart(segment: Int): Float = when {
+        LEVELS[segment] == LEVELS[segment + 1] -> -1f
+        LEVELS[segment + 1] == DECK_LEVEL -> 1f - RAMP_LEN / SEGMENT_LENGTH // pier → gangway
+        else -> DECK_FLIP_T // deck → bank lip
+    }
 
     /** Per-segment amplitude jitter, stable for a given segment and harmonic. */
     private fun ampJitter(segment: Int, harmonic: Int): Float =
@@ -74,7 +122,9 @@ internal object TerrainProfile {
     /** Ground level as a canvas-height fraction at [worldX]. */
     fun groundYAt(layout: WorldLayout, worldX: Float): Float {
         val (segment, t) = segmentAt(layout, worldX)
-        val base = LEVELS[segment] + (LEVELS[segment + 1] - LEVELS[segment]) * smooth(t)
+        val t0 = ledgeStart(segment)
+        val base = if (t0 < 0f) LEVELS[segment]
+            else LEVELS[segment] + (LEVELS[segment + 1] - LEVELS[segment]) * ledge(t, t0)
         if (!hillsAllowed(segment)) return base
         return base + hills(segment, t)
     }
@@ -82,7 +132,9 @@ internal object TerrainProfile {
     /** d(groundY)/d(worldX) — analytic, continuous across anchors by construction. */
     fun groundSlopeAt(layout: WorldLayout, worldX: Float): Float {
         val (segment, t) = segmentAt(layout, worldX)
-        val dBase = (LEVELS[segment + 1] - LEVELS[segment]) * smoothDeriv(t) / SEGMENT_LENGTH
+        val t0 = ledgeStart(segment)
+        val dBase = if (t0 < 0f) 0f
+            else (LEVELS[segment + 1] - LEVELS[segment]) * ledgeDeriv(t, t0) / SEGMENT_LENGTH
         if (!hillsAllowed(segment)) return dBase
         return dBase + hillsDeriv(segment, t) / SEGMENT_LENGTH
     }

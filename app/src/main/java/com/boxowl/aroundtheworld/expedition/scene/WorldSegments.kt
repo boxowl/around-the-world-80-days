@@ -463,6 +463,111 @@ private fun Ctx.birdsW(layer: SceneLayer, x0: Float, x1: Float, seed: Int) {
     }
 }
 
+/**
+ * Near water surface (P08): a gradient fill to the bottom of the screen, two
+ * seeded crest rows with varying scallops, and world-seeded glints. The surface
+ * moves only with the camera — in a still world it is frozen.
+ */
+private fun Ctx.waterFrontW(x0: Float, x1: Float, topFrac: Float, color: Color) {
+    val y0 = topFrac * h
+    val xa = sx(x0, SceneLayer.NEAR)
+    val xb = sx(x1, SceneLayer.NEAR)
+    d.drawRect(
+        Brush.verticalGradient(0f to color.copy(alpha = 0.55f), 0.25f to color, startY = y0, endY = h),
+        topLeft = Offset(xa, y0), size = Size(xb - xa, h - y0),
+    )
+    for (row in 0..1) {
+        val y = y0 + h * (0.004f + 0.02f * row)
+        val path = Path()
+        var wx = x0
+        var i = row * 31
+        path.moveTo(sx(wx, SceneLayer.NEAR), y)
+        while (wx < x1) {
+            val w = 0.07f + 0.06f * hash(23 + row, i, 3.7)
+            val amp = h * (0.008f + 0.008f * hash(23 + row, i, 5.3))
+            path.quadraticTo(sx(wx + w / 2, SceneLayer.NEAR), y - amp, sx(wx + w, SceneLayer.NEAR), y)
+            wx += w
+            i++
+        }
+        d.drawPath(path, lerp(color, Color.White, 0.25f), alpha = 0.5f - row * 0.15f,
+            style = Stroke(width = h * 0.005f, cap = StrokeCap.Round))
+    }
+    glintsW(SceneLayer.NEAR, x0, x1, topFrac + 0.012f, p.celestial, 0.25f + p.lightAlpha * 0.5f)
+}
+
+/** Boarding gangway (P08): plank walkway on piles over open water, with rails. */
+private fun Ctx.gangwayW(x0: Float, x1: Float, color: Color) {
+    val wood = lerp(color, Color(0xFF8A6B4A), 0.22f)
+    // Piles reaching from the walkway underside down into the water.
+    var wx = x0 + 0.04f
+    var i = 0
+    while (wx < x1) {
+        val x = sx(wx, SceneLayer.NEAR)
+        d.drawLine(color, Offset(x, gy(wx) + h * 0.02f), Offset(x, 0.97f * h), strokeWidth = h * 0.009f)
+        wx += 0.09f + 0.03f * hash(61, i, 3.3)
+        i++
+    }
+    // Plank walkway following the terrain profile.
+    val path = Path()
+    val steps = 24
+    for (s in 0..steps) {
+        val wx2 = x0 + (x1 - x0) * s / steps
+        val x = sx(wx2, SceneLayer.NEAR)
+        val y = gy(wx2)
+        if (s == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    for (s in steps downTo 0) {
+        val wx2 = x0 + (x1 - x0) * s / steps
+        path.lineTo(sx(wx2, SceneLayer.NEAR), gy(wx2) + h * 0.02f)
+    }
+    path.close()
+    d.drawPath(path, wood)
+    // Cross planks.
+    var wx3 = x0 + 0.02f
+    var j = 0
+    while (wx3 < x1 - 0.01f) {
+        val x = sx(wx3, SceneLayer.NEAR)
+        val g = gy(wx3)
+        d.drawLine(lerp(wood, Color.Black, 0.35f), Offset(x, g + h * 0.002f), Offset(x, g + h * 0.02f),
+            strokeWidth = h * 0.003f)
+        wx3 += 0.045f + 0.015f * hash(67, j, 4.1)
+        j++
+    }
+    railingW(x0 + 0.01f, x1 - 0.01f, 0.05f, color)
+}
+
+/**
+ * The near side of the hero's own ship (P08): deck lip along the terrain
+ * profile, a rounded bow at [x0] and a rounded stern at [x1], porthole row and
+ * a boot stripe at the waterline. Open water shows below the hull.
+ */
+private fun Ctx.shipHullW(x0: Float, x1: Float, color: Color) {
+    val bottom = 0.95f * h
+    val waterline = 0.93f * h
+    val hull = Path()
+    val steps = 24
+    for (s in 0..steps) {
+        val wx = x0 + (x1 - x0) * s / steps
+        val x = sx(wx, SceneLayer.NEAR)
+        val y = gy(wx)
+        if (s == 0) hull.moveTo(x, y) else hull.lineTo(x, y)
+    }
+    hull.quadraticTo(sx(x1 + 0.04f, SceneLayer.NEAR), gy(x1) + h * 0.07f, sx(x1 - 0.05f, SceneLayer.NEAR), bottom)
+    hull.lineTo(sx(x0 + 0.07f, SceneLayer.NEAR), bottom)
+    hull.quadraticTo(sx(x0 - 0.03f, SceneLayer.NEAR), gy(x0) + h * 0.06f, sx(x0, SceneLayer.NEAR), gy(x0))
+    hull.close()
+    d.drawPath(hull, color)
+    d.drawLine(lerp(color, Color.White, 0.3f), Offset(sx(x0 + 0.05f, SceneLayer.NEAR), waterline),
+        Offset(sx(x1 - 0.03f, SceneLayer.NEAR), waterline), strokeWidth = h * 0.005f, alpha = 0.5f)
+    val port = if (p.lightAlpha > 0f) p.light else lerp(color, Color.White, 0.35f)
+    val pa = if (p.lightAlpha > 0f) 0.8f * p.lightAlpha else 0.4f
+    var wx = x0 + 0.1f
+    while (wx < x1 - 0.08f) {
+        d.drawCircle(port, h * 0.006f, Offset(sx(wx, SceneLayer.NEAR), 0.865f * h), alpha = pa)
+        wx += 0.09f
+    }
+}
+
 /** Wave scallop rows on open water, anchored in world coordinates. */
 private fun Ctx.wavesW(layer: SceneLayer, x0: Float, x1: Float, yFrac: Float, color: Color) {
     val y = yFrac * h
@@ -795,13 +900,20 @@ private fun Ctx.seg7Brindisi(layer: SceneLayer) {
             d.mast(sx(a7 + 0.55f, layer), 0.66f * h, 0.16f * h, mid)
             d.mast(sx(a7 + 0.7f, layer), 0.66f * h, 0.19f * h, mid)
             d.mast(sx(a7 + 0.85f, layer), 0.66f * h, 0.14f * h, mid)
-            // The steamer waiting at the pier; its deck line meets the boarding ramp at a8.
-            d.steamer(sx(a7 + 0.45f, layer), sx(a7 + 1.05f, layer), 0.78f * h, mid, p, 1f, seed = a7 + 0.45f)
+            // A second steamer outfitting at the roadstead quay, behind the pier.
+            d.steamer(sx(a7 + 0.45f, layer), sx(a8, layer), 0.78f * h, mid, p, 1f, seed = a7 + 0.45f)
         }
         SceneLayer.NEAR -> {
-            // Stone pier rising in a long gangway ramp to deck level at a8.
-            groundStrip(a7 - 0.1f, a8 + 0.001f, lerp(near, mid, 0.12f))
-            edgeLine(a7 - 0.1f, a8, lerp(near, p.light, 0.3f), 0.3f * p.lightAlpha.coerceAtLeast(0.2f))
+            val rampStart = TerrainProfile.rampStartX(layout)
+            // Boarding basin: open water in front of the quay, visible under
+            // the gangway piles — the ramp is a pier structure, not filled earth.
+            waterFrontW(rampStart - 0.15f, a8 + 0.02f, 0.70f, lerp(p.skyBottom, near, 0.45f))
+            // Stone quay, flat to the gangway foot.
+            groundStrip(a7 - 0.1f, rampStart - 0.08f, lerp(near, mid, 0.12f))
+            edgeLine(a7 - 0.1f, rampStart - 0.08f, lerp(near, p.light, 0.3f),
+                0.3f * p.lightAlpha.coerceAtLeast(0.2f))
+            // The gangway itself: planks on piles, meeting the deck at a8.
+            gangwayW(rampStart, a8, near)
             d.bales(sx(a7 + 0.15f, layer), gy(a7 + 0.15f), near)
             d.lamppost(sx(a7 + 0.25f, layer), gy(a7 + 0.25f), 0.13f * h, near, p, 1f)
             d.lamppost(sx(a7 + 0.6f, layer), gy(a7 + 0.6f), 0.12f * h, near, p, 1f)
@@ -828,9 +940,12 @@ private fun Ctx.seg8Mediterranean(layer: SceneLayer) {
             wavesW(layer, a8 + 0.07f, a9 + 0.3f, 0.72f, mid)
         }
         SceneLayer.NEAR -> {
-            // The steamer deck is the walking surface: it begins exactly where the
-            // Brindisi ramp ends (a8) and ends flush with the Suez bank (a9).
-            groundStrip(a8, a9 + 0.001f, near)
+            // The sea leg (P08): the hero stands on the steamer's deck. Below
+            // the deck lip is the ship's own side — portholes, waterline — and
+            // open water underneath; the bow meets the Brindisi gangway at a8,
+            // the stern rounds off flush with the Suez bank (0.78) at a9.
+            waterFrontW(a8 - 0.02f, a9 + 0.3f, 0.93f, lerp(p.skyBottom, near, 0.5f))
+            shipHullW(a8, a9, near)
             edgeLine(a8, a9, lerp(near, p.light, 0.3f), 0.3f * p.lightAlpha.coerceAtLeast(0.2f))
             railingW(a8 + 0.03f, a9 - 0.03f, 0.055f, near)
             // Funnel with its smoke, standing on the deck.

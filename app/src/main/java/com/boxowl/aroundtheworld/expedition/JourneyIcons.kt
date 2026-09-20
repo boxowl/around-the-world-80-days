@@ -8,30 +8,31 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Thin line icons for the bottom navigation: 24 dp viewport, 1.8 stroke, round
+ * Thin line icons for the dark shell (P06): 24 dp viewport, 1.8 stroke, round
  * caps and joins. Tinted by the Icon composable, so the stroke colour here is
  * only a placeholder.
  */
 internal object JourneyIcons {
 
-    /** Путь — два следа идущего. */
+    /** Путь — идущий путник с посохом. */
     val Path: ImageVector = lineIcon("JourneyPath") {
-        moveTo(7.2f, 3.6f)
-        curveTo(5.7f, 3.6f, 4.9f, 5.2f, 4.9f, 6.9f)
-        curveTo(4.9f, 8.6f, 5.7f, 9.9f, 7.2f, 9.9f)
-        curveTo(8.7f, 9.9f, 9.5f, 8.6f, 9.5f, 6.9f)
-        curveTo(9.5f, 5.2f, 8.7f, 3.6f, 7.2f, 3.6f)
-        close()
-        circle(7.2f, 12.5f, 1.3f)
-        moveTo(16.8f, 11.6f)
-        curveTo(15.3f, 11.6f, 14.5f, 13.2f, 14.5f, 14.9f)
-        curveTo(14.5f, 16.6f, 15.3f, 17.9f, 16.8f, 17.9f)
-        curveTo(18.3f, 17.9f, 19.1f, 16.6f, 19.1f, 14.9f)
-        curveTo(19.1f, 13.2f, 18.3f, 11.6f, 16.8f, 11.6f)
-        close()
-        circle(16.8f, 20.5f, 1.3f)
+        circle(10.4f, 5.0f, 1.9f)
+        moveTo(10.2f, 7.2f)
+        lineTo(9.5f, 13.2f)
+        moveTo(9.5f, 13.2f)
+        lineTo(6.4f, 19.8f)
+        moveTo(9.5f, 13.2f)
+        lineTo(12.4f, 19.2f)
+        moveTo(10.0f, 8.6f)
+        lineTo(13.4f, 11.6f)
+        moveTo(14.9f, 7.4f)
+        lineTo(15.8f, 20.6f)
+        moveTo(10.2f, 8.0f)
+        lineTo(7.4f, 10.8f)
     }
 
     /** Карта — сложенная дорожная карта. */
@@ -65,17 +66,46 @@ internal object JourneyIcons {
         lineTo(12f, 18.6f)
     }
 
-    /** Шаги и доступ — походный башмак в профиль. */
-    val Steps: ImageVector = lineIcon("JourneySteps") {
-        moveTo(5.5f, 3.5f)
-        lineTo(10.5f, 3.5f)
-        lineTo(10.5f, 10f)
-        curveTo(12.8f, 10.8f, 17.5f, 12.2f, 19f, 14.6f)
-        lineTo(19f, 18f)
-        lineTo(5.5f, 18f)
-        close()
-        moveTo(5.5f, 15.4f)
-        lineTo(19f, 15.4f)
+    /** Настройки — восьмизубая шестерёнка. */
+    val Gear: ImageVector = lineIcon("JourneyGear") {
+        circle(12f, 12f, 3.1f)
+        val teeth = 8
+        val root = 5.4f
+        val tip = 8.4f
+        val cx = 12f
+        val cy = 12f
+        for (i in 0 until teeth) {
+            val a0 = Math.toRadians(i * 45.0 + 8.0)
+            val a1 = Math.toRadians(i * 45.0 + 16.0)
+            val a2 = Math.toRadians(i * 45.0 + 29.0)
+            val a3 = Math.toRadians(i * 45.0 + 37.0)
+            moveTo(cx + root * cos(a0).toFloat(), cy + root * sin(a0).toFloat())
+            lineTo(cx + tip * cos(a1).toFloat(), cy + tip * sin(a1).toFloat())
+            lineTo(cx + tip * cos(a2).toFloat(), cy + tip * sin(a2).toFloat())
+            lineTo(cx + root * cos(a3).toFloat(), cy + root * sin(a3).toFloat())
+        }
+    }
+
+    /** Компактная сверка шагов — круговая стрелка. */
+    val Refresh: ImageVector = lineIcon("JourneyRefresh") {
+        var first = true
+        for (deg in 60..300 step 10) {
+            val rad = Math.toRadians(deg.toDouble())
+            val px = 12f + 8f * cos(rad).toFloat()
+            val py = 12f + 8f * sin(rad).toFloat()
+            if (first) { moveTo(px, py); first = false } else { lineTo(px, py) }
+        }
+        moveTo(12.8f, 3.6f)
+        lineTo(16.2f, 5.2f)
+        lineTo(18.6f, 1.9f)
+    }
+
+    /** Скрыть уведомление — крестик. */
+    val Close: ImageVector = lineIcon("JourneyClose") {
+        moveTo(6.5f, 6.5f)
+        lineTo(17.5f, 17.5f)
+        moveTo(17.5f, 6.5f)
+        lineTo(6.5f, 17.5f)
     }
 
     private fun lineIcon(name: String, pathBuilder: PathBuilder.() -> Unit): ImageVector =

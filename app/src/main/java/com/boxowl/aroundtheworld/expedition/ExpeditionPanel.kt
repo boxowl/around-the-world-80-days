@@ -6,14 +6,23 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -21,7 +30,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.boxowl.aroundtheworld.ExpeditionMuted
+import com.boxowl.aroundtheworld.ExpeditionSurface
+import com.boxowl.aroundtheworld.ExpeditionText
 import com.boxowl.aroundtheworld.PermissionsRationaleActivity
 import com.boxowl.aroundtheworld.health.DiagnosticsPanel
 import com.boxowl.aroundtheworld.health.HealthConnectStepsGateway
@@ -79,7 +92,8 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
             when (current) {
                 JourneyState.Loading -> CircularProgressIndicator()
                 JourneyState.NotStarted -> {
-                    Text("Настройка экспедиции", style = MaterialTheme.typography.titleLarge)
+                    Text("Настройка экспедиции", style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
                     Text("Выберите режим и темп до старта. Отсчёт шагов начнётся с момента нажатия «Начать экспедицию».")
                     JourneyMode.entries.forEach { mode ->
                         Row {
@@ -132,75 +146,159 @@ private fun ActiveExpedition(
 ) {
     val expedition = current.expedition
     val newEvent = expedition.stops.firstOrNull { it.id in current.unviewedEventIds }
+    val owner = LocalLifecycleOwner.current
     var now by remember { mutableStateOf(Instant.now()) }
-    LaunchedEffect(expedition.startedAt) { while (true) { now = Instant.now(); delay(30_000) } }
+    // The clock tick (and thus scene animations) stops while the app is not visible.
+    LaunchedEffect(expedition.startedAt, owner) {
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) { now = Instant.now(); delay(30_000) }
+        }
+    }
     val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
     var page by rememberSaveable { mutableStateOf("journey") }
+    var dismissedEventIds by rememberSaveable { mutableStateOf(listOf<String>()) }
+    // Per-tab scroll positions survive tab switches and configuration changes.
+    val journeyScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    val mapScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    val diaryScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    val healthScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (newEvent != null && page != "diary") {
-                    ElevatedCard(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Новое событие · ${newEvent.name}", style = MaterialTheme.typography.titleMedium)
-                            Text(newEvent.diary)
-                            Button(onClick = { onEventViewed(newEvent.id) }) { Text("Прочитано") }
-                            if (current.eventActionError) {
-                                Text("Не удалось сохранить отметку. Запись останется новой; попробуйте ещё раз.",
-                                    color = MaterialTheme.colorScheme.error)
-                            }
-                        }
+            val shownEvent = newEvent?.takeIf { page != "diary" && it.id !in dismissedEventIds }
+            when (page) {
+                "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, onRefresh,
+                    journeyScroll)
+                "map" -> Column(
+                    Modifier.fillMaxSize().verticalScroll(mapScroll).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (shownEvent != null) {
+                        NewEventNotification(
+                            name = shownEvent.name,
+                            onOpen = { page = "diary" },
+                            onDismiss = { dismissedEventIds = dismissedEventIds + shownEvent.id },
+                        )
                     }
+                    FirstLegMap(expedition, onOpenDiary = { page = "diary" })
                 }
-                when (page) {
-                    "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, onRefresh)
-                    "map" -> FirstLegMap(expedition, onOpenDiary = { page = "diary" })
-                    "diary" -> {
-                        Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge)
-                        Text("Открытые записи остаются здесь, даже если источник шагов позже скорректирует итог.")
-                        expedition.stops.filter { it.id in expedition.unlocked }.forEach { stop ->
-                            ElevatedCard(Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stop.name, style = MaterialTheme.typography.titleMedium)
-                                    Text(stop.diary)
-                                    if (stop.id in current.unviewedEventIds) {
-                                        Text("Новая запись", color = MaterialTheme.colorScheme.primary,
-                                            style = MaterialTheme.typography.labelLarge)
-                                        OutlinedButton(onClick = { onEventViewed(stop.id) }) {
-                                            Text("Отметить прочитанной")
-                                        }
-                                        if (current.eventActionError) {
-                                            Text("Не удалось сохранить отметку. Запись останется новой; попробуйте ещё раз.",
-                                                color = MaterialTheme.colorScheme.error)
-                                        }
+                "diary" -> Column(
+                    Modifier.fillMaxSize().verticalScroll(diaryScroll).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                    Text("Открытые записи остаются здесь, даже если источник шагов позже скорректирует итог.",
+                        color = ExpeditionMuted)
+                    expedition.stops.filter { it.id in expedition.unlocked }.forEach { stop ->
+                        ElevatedCard(
+                            Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(containerColor = ExpeditionSurface),
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(stop.name, style = MaterialTheme.typography.titleMedium,
+                                    fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                                Text(stop.diary, color = ExpeditionText.copy(alpha = 0.9f))
+                                if (stop.id in current.unviewedEventIds) {
+                                    Text("Новая запись", color = MaterialTheme.colorScheme.primary,
+                                        style = MaterialTheme.typography.labelLarge)
+                                    OutlinedButton(onClick = { onEventViewed(stop.id) }) {
+                                        Text("Отметить прочитанной")
+                                    }
+                                    if (current.eventActionError) {
+                                        Text("Не удалось сохранить отметку. Запись останется новой; попробуйте ещё раз.",
+                                            color = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
                         }
                     }
-                    else -> {
-                        Text("Экспедиция", style = MaterialTheme.typography.titleLarge)
-                        Text("${if (expedition.mode == JourneyMode.FREE) "Свободное путешествие" else "Пари на 80 дней"} · темп ${formatSteps(expedition.paceStepsPerDay.toLong())} шагов/день")
-                        Text("Старт: ${format.format(expedition.startedAt)} · пояс ${expedition.zone.id}")
-                        if (expedition.mode == JourneyMode.WAGER) {
-                            Text("Срок пари: ${format.format(expedition.deadline)}")
-                            if (expedition.wagerStatus(now) == WagerStatus.EXPIRED) Text("Срок пари истёк. Путешествие и дневник сохраняются.")
-                        }
-                        if (expedition.lastReadAt != null) Text("Последняя успешная сверка: ${format.format(expedition.lastReadAt)}")
-                        StepAccessPanel(access, actionError,
-                            request = requestPermissions, open = open, retry = onCheckAccess)
-                        if (current.syncing) Text("Сверяем дневные шаги…")
-                        OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
-                        HorizontalDivider()
-                        DiagnosticsPanel()
-                    }
                 }
+                else -> Column(
+                    Modifier.fillMaxSize().verticalScroll(healthScroll).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (shownEvent != null) {
+                        NewEventNotification(
+                            name = shownEvent.name,
+                            onOpen = { page = "diary" },
+                            onDismiss = { dismissedEventIds = dismissedEventIds + shownEvent.id },
+                        )
+                    }
+                    Text("Настройки", style = MaterialTheme.typography.titleLarge,
+                        fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold)
+                    Text("${if (expedition.mode == JourneyMode.FREE) "Свободное путешествие" else "Пари на 80 дней"} · темп ${formatSteps(expedition.paceStepsPerDay.toLong())} шагов/день")
+                    Text("Старт: ${format.format(expedition.startedAt)} · пояс ${expedition.zone.id}")
+                    Text("День считается в часовом поясе старта. Первый день — с момента старта.")
+                    if (expedition.mode == JourneyMode.WAGER) {
+                        Text("Срок пари: ${format.format(expedition.deadline)}")
+                        if (expedition.wagerStatus(now) == WagerStatus.EXPIRED) Text("Срок пари истёк. Путешествие и дневник сохраняются.")
+                    }
+                    if (expedition.lastReadAt != null) Text("Последняя успешная сверка: ${format.format(expedition.lastReadAt)}")
+                    (current.sync as? SyncResult.Updated)?.let { sync ->
+                        if (sync.gaps > 0) Text("Для ${sync.gaps} дневных окон нет итога. Известный путь может быть неполным.")
+                        if (sync.limited) Text("Ранние дни вне окна сверки; сохранённые итоги не удалены.")
+                    }
+                    StepAccessPanel(access, actionError,
+                        request = requestPermissions, open = open, retry = onCheckAccess)
+                    if (current.syncing) Text("Сверяем дневные шаги…")
+                    OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
+                    HorizontalDivider()
+                    DiagnosticsPanel()
+                }
+            }
+            if (page == "journey" && shownEvent != null) {
+                NewEventNotification(
+                    name = shownEvent.name,
+                    onOpen = { page = "diary" },
+                    onDismiss = { dismissedEventIds = dismissedEventIds + shownEvent.id },
+                    modifier = Modifier.align(Alignment.TopCenter).padding(12.dp),
+                )
             }
         }
         JourneyNavBar(page, current.unviewedEventIds.isNotEmpty(), onSelect = { page = it })
+    }
+}
+
+/**
+ * Compact new-event notice (P06): an invitation to open the diary, not a banner
+ * card. Dismissing it only hides the notice for this session — the entry stays
+ * unviewed (the nav badge remains) until «Отметить прочитанной» in the diary.
+ */
+@Composable
+private fun NewEventNotification(
+    name: String,
+    onOpen: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+    ) {
+        Row(
+            Modifier.padding(start = 14.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Новое событие · $name",
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            TextButton(onClick = onOpen) { Text("Читать") }
+            IconButton(onClick = onDismiss, Modifier.size(36.dp)) {
+                Icon(JourneyIcons.Close, contentDescription = "Скрыть уведомление о новом событии",
+                    Modifier.size(16.dp))
+            }
+        }
     }
 }
 

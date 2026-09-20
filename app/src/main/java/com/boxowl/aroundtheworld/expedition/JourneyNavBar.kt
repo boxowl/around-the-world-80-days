@@ -15,12 +15,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-
-private val navPaper = Color(0xFFFFF9EC)
-private val navInk = Color(0xFF283E49)
-private val navTerracotta = Color(0xFFA4412C)
-private val navOnTerracotta = Color(0xFFFFF9EC)
+import com.boxowl.aroundtheworld.ExpeditionBackground
+import com.boxowl.aroundtheworld.ExpeditionGold
+import com.boxowl.aroundtheworld.ExpeditionMuted
 
 private class JourneyNavItem(val id: String, val label: String, val icon: ImageVector)
 
@@ -28,10 +27,14 @@ private val journeyNavItems = listOf(
     JourneyNavItem("journey", "Путь", JourneyIcons.Path),
     JourneyNavItem("map", "Карта", JourneyIcons.Map),
     JourneyNavItem("diary", "Дневник", JourneyIcons.Diary),
-    JourneyNavItem("health", "Шаги и доступ", JourneyIcons.Steps),
+    JourneyNavItem("health", "Настройки", JourneyIcons.Gear),
 )
 
-/** Light atlas-paper bottom bar, intentionally contrasting the dark «Путь» page. */
+/**
+ * Dark bottom bar in the Fantasy Hike manner: thin line icons on the shared
+ * near-black surface, no indicator pill — the active item is marked by the
+ * gold icon and label only.
+ */
 @Composable
 internal fun JourneyNavBar(
     page: String,
@@ -39,8 +42,8 @@ internal fun JourneyNavBar(
     onSelect: (String) -> Unit,
 ) {
     Column {
-        HorizontalDivider(thickness = 1.dp, color = navInk.copy(alpha = 0.15f))
-        NavigationBar(containerColor = navPaper, tonalElevation = 0.dp) {
+        HorizontalDivider(thickness = 1.dp, color = Color.White.copy(alpha = 0.08f))
+        NavigationBar(containerColor = ExpeditionBackground, tonalElevation = 0.dp) {
             journeyNavItems.forEach { item ->
                 NavigationBarItem(
                     selected = page == item.id,
@@ -49,9 +52,12 @@ internal fun JourneyNavBar(
                         val badge = item.id == "diary" && hasUnviewedEvents
                         if (badge) {
                             BadgedBox(badge = {
-                                Badge(Modifier.semantics {
-                                    contentDescription = "Есть непрочитанные записи дневника"
-                                })
+                                Badge(
+                                    Modifier.semantics {
+                                        contentDescription = "Есть непрочитанные записи дневника"
+                                    },
+                                    containerColor = ExpeditionGold,
+                                )
                             }) {
                                 Icon(item.icon, contentDescription = null)
                             }
@@ -59,13 +65,13 @@ internal fun JourneyNavBar(
                             Icon(item.icon, contentDescription = null)
                         }
                     },
-                    label = { Text(item.label) },
+                    label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = navOnTerracotta,
-                        selectedTextColor = navInk,
-                        unselectedIconColor = navInk,
-                        unselectedTextColor = navInk,
-                        indicatorColor = navTerracotta,
+                        selectedIconColor = ExpeditionGold,
+                        selectedTextColor = ExpeditionGold,
+                        unselectedIconColor = ExpeditionMuted,
+                        unselectedTextColor = ExpeditionMuted,
+                        indicatorColor = Color.Transparent,
                     ),
                 )
             }

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -56,8 +57,10 @@ fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
             },
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Шаги · проверка подключения", style = MaterialTheme.typography.titleLarge)
-        Text("Читаем только число шагов. После начала экспедиции дневные итоги сохраняются на телефоне и двигают героя.")
+        Text("Шаги · проверка подключения", style = MaterialTheme.typography.titleMedium,
+            fontFamily = FontFamily.Serif)
+        Text("Читаем только число шагов. После начала экспедиции дневные итоги сохраняются на телефоне и двигают героя.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
         when (val current = state) {
             DiagnosticState.Loading -> { CircularProgressIndicator(); Text("Проверяем доступ и читаем шаги…") }
             DiagnosticState.Unavailable -> Text("Health Connect недоступен на этом устройстве. Проверим другой источник шагов после испытания телефона.")
@@ -79,7 +82,8 @@ fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
             DiagnosticState.ReadError -> Text("Не удалось прочитать шаги. Проверьте Health Connect и повторите обновление. Ошибка не означает ноль шагов.")
             is DiagnosticState.Ready -> {
                 val snapshot = current.snapshot
-                Text("Сегодня: ${snapshot.today.count?.let { "$it шагов" } ?: "нет данных"}", style = MaterialTheme.typography.headlineSmall)
+                Text("Сегодня: ${snapshot.today.count?.let { "$it шагов" } ?: "нет данных"}",
+                    style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                 Text("За 7 календарных дней, включая сегодня: ${snapshot.week.count?.let { "$it шагов" } ?: "нет данных"}")
                 if (snapshot.today.count == null) Text("Источник пока не передал записи за сегодня. Проверьте сбор шагов и синхронизацию в Health Connect.")
                 val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(snapshot.zone)

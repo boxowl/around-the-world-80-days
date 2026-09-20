@@ -52,7 +52,7 @@ internal enum class SceneKind(
     DEPARTURE("departure", "За лондонскими крышами", "редеющие крыши, поля и телеграфные столбы вдоль дороги"),
     DOVER("dover", "Дувр", "белые скалы и маяк над линией моря", haze = 0.12f),
     CALAIS("calais", "Кале", "паром с мачтами у причала и огни порта", haze = 0.1f),
-    PARIS("paris", "Париж", "городской силуэт с башней, арка вокзала и поезд"),
+    PARIS("paris", "Париж", "купола и мансардные крыши, арка вокзала и поезд"),
     ALPS("alps", "Альпы", "снежные вершины, ели и портал тоннеля"),
     TURIN("turin", "Турин", "холмы, купол со шпилем, кипарисы и аркады"),
     BRINDISI("brindisi", "Бриндизи", "порт в морской дымке, пароход у причала", haze = 0.3f),
@@ -101,7 +101,7 @@ private val DAWN_PALETTE = ScenePalette(
 )
 private val DAY_PALETTE = ScenePalette(
     skyTop = Color(0xFF6E9CC8), skyMid = Color(0xFFA9C6DE), skyBottom = Color(0xFFDAE4E4),
-    far = Color(0xFF8498AA), mid = Color(0xFF5F7488), near = Color(0xFF3C5062),
+    far = Color(0xFF8498AA), mid = Color(0xFF54687C), near = Color(0xFF2E4050),
     celestial = Color(0xFFFFF3C4), starAlpha = 0f, light = Color(0xFFFFC57A), lightAlpha = 0f,
 )
 private val SUNSET_PALETTE = ScenePalette(
@@ -238,10 +238,12 @@ internal fun JourneySceneCanvas(
         val w = size.width
         val f = blend.fraction
         for (layer in SceneLayer.entries) {
+            // Wide parallax separates the outgoing and incoming silhouettes
+            // quickly, so a blend never reads as two cities overlaid.
             val parallax = when (layer) {
-                SceneLayer.FAR -> 0.08f
-                SceneLayer.MID -> 0.18f
-                SceneLayer.NEAR -> 0.3f
+                SceneLayer.FAR -> 0.14f
+                SceneLayer.MID -> 0.32f
+                SceneLayer.NEAR -> 0.55f
             } * w
             if (to == null) {
                 drawSceneLayer(from, layer, pal, 0f, 1f)
@@ -249,12 +251,24 @@ internal fun JourneySceneCanvas(
                 drawSceneLayer(from, layer, pal, -f * parallax, 1f - f)
                 drawSceneLayer(to, layer, pal, (1f - f) * parallax, f)
             }
+            if (layer == SceneLayer.FAR) horizonHaze(pal)
         }
-        hero(mix(0.24f, 0.76f, heroFractionAt(position, JOURNEY_SCENES.size)) * w, size.height * 0.8f, pal)
+        val heroY = if (to == null) heroGroundY(from, size.height)
+            else mix(heroGroundY(from, size.height), heroGroundY(to, size.height), f)
+        hero(mix(0.24f, 0.76f, heroFractionAt(position, JOURNEY_SCENES.size)) * w, heroY, pal)
     }
 }
 
 private enum class SceneLayer { FAR, MID, NEAR }
+
+/** Ground line of the land scenes; the Mediterranean hero stands on the steamer deck. */
+private const val GROUND_FRACTION = 0.68f
+
+private fun heroGroundY(scene: SceneKind, h: Float): Float = when (scene) {
+    SceneKind.MEDITERRANEAN -> h * 0.83f
+    SceneKind.SUEZ -> h * 0.78f
+    else -> h * GROUND_FRACTION
+}
 
 private fun Color.fade(a: Float): Color = copy(alpha = alpha * a)
 
@@ -262,7 +276,23 @@ private fun frac(v: Double): Float = (v - floor(v)).toFloat()
 
 private fun DrawScope.sky(p: ScenePalette) {
     drawRect(
-        Brush.verticalGradient(listOf(p.skyTop, p.skyMid, p.skyBottom), startY = 0f, endY = size.height * 0.85f),
+        Brush.verticalGradient(listOf(p.skyTop, p.skyMid, p.skyBottom), startY = 0f, endY = size.height * 0.7f),
+    )
+}
+
+/** Soft atmospheric band at the horizon so far silhouettes melt into the sky. */
+private fun DrawScope.horizonHaze(p: ScenePalette) {
+    val h = size.height
+    val top = h * 0.48f
+    val bottom = h * (GROUND_FRACTION + 0.01f)
+    drawRect(
+        Brush.verticalGradient(
+            0f to p.skyBottom.copy(alpha = 0f),
+            1f to p.skyBottom.copy(alpha = 0.5f),
+            startY = top, endY = bottom,
+        ),
+        topLeft = Offset(0f, top),
+        size = Size(size.width, bottom - top),
     )
 }
 
@@ -285,26 +315,48 @@ private fun DrawScope.celestial(p: ScenePalette, pos: Offset, moon: Boolean) {
     drawCircle(p.celestial, radius = r * 1.9f, center = center, alpha = 0.16f)
     drawCircle(p.celestial, radius = r, center = center)
     if (moon) {
-        drawCircle(lerp(p.celestial, p.skyTop, 0.55f), radius = r * 0.78f,
-            center = center + Offset(-r * 0.35f, -r * 0.2f), alpha = 0.5f)
+        // Craters sit fully inside the disc so the moon never looks clipped.
+        val crater = lerp(p.celestial, p.skyTop, 0.4f)
+        drawCircle(crater, radius = r * 0.2f, center = center + Offset(-r * 0.3f, -r * 0.18f), alpha = 0.35f)
+        drawCircle(crater, radius = r * 0.13f, center = center + Offset(r * 0.26f, r * 0.22f), alpha = 0.3f)
+        drawCircle(crater, radius = r * 0.09f, center = center + Offset(r * 0.08f, -r * 0.42f), alpha = 0.3f)
     }
 }
 
+/**
+ * Solid silhouette of a XIX-century traveller facing right: hat brim, long
+ * flared coat, walking stride, shoulder bag and a staff in the forward hand.
+ */
 private fun DrawScope.hero(x: Float, groundY: Float, p: ScenePalette) {
-    val s = size.height * 0.16f
-    val c = lerp(p.near, Color.Black, 0.35f)
-    val sw = s * 0.09f
-    drawCircle(c, radius = s * 0.11f, center = Offset(x, groundY - s * 0.86f))
-    drawLine(c, Offset(x, groundY - s * 0.74f), Offset(x - s * 0.03f, groundY - s * 0.42f),
-        strokeWidth = sw, cap = StrokeCap.Round)
-    drawLine(c, Offset(x - s * 0.03f, groundY - s * 0.42f), Offset(x - s * 0.2f, groundY),
-        strokeWidth = sw, cap = StrokeCap.Round)
-    drawLine(c, Offset(x - s * 0.03f, groundY - s * 0.42f), Offset(x + s * 0.18f, groundY - s * 0.02f),
-        strokeWidth = sw, cap = StrokeCap.Round)
-    drawLine(c, Offset(x, groundY - s * 0.68f), Offset(x + s * 0.16f, groundY - s * 0.44f),
-        strokeWidth = sw, cap = StrokeCap.Round)
-    drawLine(c, Offset(x + s * 0.16f, groundY - s * 0.44f), Offset(x + s * 0.2f, groundY),
-        strokeWidth = sw * 0.6f, cap = StrokeCap.Round)
+    val s = size.height * 0.11f
+    val c = lerp(p.near, Color.Black, 0.4f)
+    // Staff planted ahead of the body.
+    drawLine(c, Offset(x + s * 0.34f, groundY - s * 0.64f), Offset(x + s * 0.42f, groundY),
+        strokeWidth = s * 0.05f, cap = StrokeCap.Round)
+    // Legs in stride, under the coat hem.
+    drawLine(c, Offset(x + s * 0.04f, groundY - s * 0.32f), Offset(x + s * 0.22f, groundY),
+        strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+    drawLine(c, Offset(x - s * 0.05f, groundY - s * 0.32f), Offset(x - s * 0.16f, groundY - s * 0.01f),
+        strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+    // Flared coat from shoulders to hem.
+    val coat = Path().apply {
+        moveTo(x - s * 0.10f, groundY - s * 0.80f)
+        quadraticTo(x + s * 0.01f, groundY - s * 0.87f, x + s * 0.08f, groundY - s * 0.78f)
+        lineTo(x + s * 0.15f, groundY - s * 0.32f)
+        lineTo(x + s * 0.02f, groundY - s * 0.27f)
+        lineTo(x - s * 0.17f, groundY - s * 0.31f)
+        close()
+    }
+    drawPath(coat, c)
+    // Arm reaching to the staff.
+    drawLine(c, Offset(x + s * 0.05f, groundY - s * 0.68f), Offset(x + s * 0.32f, groundY - s * 0.58f),
+        strokeWidth = s * 0.07f, cap = StrokeCap.Round)
+    // Shoulder bag hanging behind the back.
+    drawOval(c, topLeft = Offset(x - s * 0.24f, groundY - s * 0.70f), size = Size(s * 0.15f, s * 0.22f))
+    // Head with a hat brim.
+    drawCircle(c, radius = s * 0.085f, center = Offset(x + s * 0.03f, groundY - s * 0.92f))
+    drawLine(c, Offset(x - s * 0.06f, groundY - s * 0.97f), Offset(x + s * 0.14f, groundY - s * 0.955f),
+        strokeWidth = s * 0.045f, cap = StrokeCap.Round)
 }
 
 private fun DrawScope.ground(color: Color, gy: Float, dx: Float) {
@@ -318,12 +370,22 @@ private fun DrawScope.glow(x: Float, y: Float, r: Float, p: ScenePalette, a: Flo
     drawCircle(p.light, r, Offset(x, y), alpha = p.lightAlpha * a)
 }
 
+/** Soft overlapping steam plume: small translucent puffs, no bead chain. */
 private fun DrawScope.smoke(x: Float, y: Float, color: Color, a: Float) {
     val u = size.height
-    drawCircle(color, u * 0.022f, Offset(x, y), alpha = 0.5f * a)
-    drawCircle(color, u * 0.03f, Offset(x + u * 0.02f, y - u * 0.05f), alpha = 0.4f * a)
-    drawCircle(color, u * 0.038f, Offset(x + u * 0.06f, y - u * 0.11f), alpha = 0.28f * a)
+    val puffs = listOf(
+        Quad(0f, 0f, 0.022f, 0.20f),
+        Quad(0.018f, -0.028f, 0.03f, 0.16f),
+        Quad(0.045f, -0.06f, 0.038f, 0.12f),
+        Quad(0.08f, -0.1f, 0.048f, 0.09f),
+        Quad(0.125f, -0.145f, 0.058f, 0.06f),
+    )
+    for ((ox, oy, r, alpha) in puffs) {
+        drawCircle(color, u * r, Offset(x + u * ox, y + u * oy), alpha = alpha * a)
+    }
 }
+
+private data class Quad(val ox: Float, val oy: Float, val r: Float, val alpha: Float)
 
 private fun DrawScope.lamppost(x: Float, gy: Float, hgt: Float, color: Color, p: ScenePalette, a: Float) {
     drawLine(color, Offset(x, gy), Offset(x, gy - hgt), strokeWidth = size.height * 0.008f, cap = StrokeCap.Round)
@@ -331,6 +393,10 @@ private fun DrawScope.lamppost(x: Float, gy: Float, hgt: Float, color: Color, p:
     glow(x, gy - hgt, size.height * 0.012f, p, a)
 }
 
+/**
+ * Roofline strip with silhouette variety: gable, mansard and flat-parapet
+ * houses of different heights and widths, 0–2 chimneys, an occasional spire.
+ */
 private fun DrawScope.roofs(gy: Float, baseH: Float, dx: Float, color: Color, seed: Int, chimneys: Boolean) {
     val unit = size.width / 7f
     var i = -2
@@ -339,16 +405,47 @@ private fun DrawScope.roofs(gy: Float, baseH: Float, dx: Float, color: Color, se
         val hh = baseH * (0.7f + 0.5f * frac(sin((i + seed) * 7.13) * 91.7))
         val wd = unit * (0.75f + 0.3f * frac(sin((i + seed) * 3.31) * 57.3))
         drawRect(color, topLeft = Offset(x, gy - hh), size = Size(wd, hh))
-        val roof = Path().apply {
-            moveTo(x - wd * 0.06f, gy - hh)
-            lineTo(x + wd * 0.5f, gy - hh - wd * 0.28f)
-            lineTo(x + wd * 1.06f, gy - hh)
-            close()
+        when ((frac(sin((i + seed) * 9.17) * 31.7) * 3f).toInt()) {
+            0 -> {
+                val roof = Path().apply {
+                    moveTo(x - wd * 0.06f, gy - hh)
+                    lineTo(x + wd * 0.5f, gy - hh - wd * 0.28f)
+                    lineTo(x + wd * 1.06f, gy - hh)
+                    close()
+                }
+                drawPath(roof, color)
+            }
+            1 -> {
+                val mansard = Path().apply {
+                    moveTo(x - wd * 0.02f, gy - hh)
+                    lineTo(x + wd * 0.22f, gy - hh - wd * 0.18f)
+                    lineTo(x + wd * 0.78f, gy - hh - wd * 0.18f)
+                    lineTo(x + wd * 1.02f, gy - hh)
+                    close()
+                }
+                drawPath(mansard, color)
+            }
+            else -> drawRect(color, topLeft = Offset(x - wd * 0.02f, gy - hh - wd * 0.05f),
+                size = Size(wd * 1.04f, wd * 0.06f))
         }
-        drawPath(roof, color)
         if (chimneys) {
-            drawRect(color, topLeft = Offset(x + wd * 0.62f, gy - hh - wd * 0.28f - hh * 0.18f),
-                size = Size(wd * 0.1f, hh * 0.2f + wd * 0.06f))
+            val count = (frac(sin((i + seed) * 6.47) * 47.9) * 3f).toInt()
+            for (ch in 0 until count) {
+                val cx = x + wd * (0.2f + 0.5f * frac(sin((i + seed + ch) * 4.53) * 63.1))
+                drawRect(color, topLeft = Offset(cx, gy - hh - wd * 0.28f - hh * 0.1f),
+                    size = Size(wd * 0.09f, hh * 0.14f + wd * 0.2f))
+            }
+            if (frac(sin((i + seed) * 11.31) * 83.7) > 0.86f) {
+                drawRect(color, topLeft = Offset(x + wd * 0.46f, gy - hh - hh * 0.5f),
+                    size = Size(wd * 0.06f, hh * 0.5f))
+                val tip = Path().apply {
+                    moveTo(x + wd * 0.42f, gy - hh - hh * 0.5f)
+                    lineTo(x + wd * 0.49f, gy - hh - hh * 0.66f)
+                    lineTo(x + wd * 0.56f, gy - hh - hh * 0.5f)
+                    close()
+                }
+                drawPath(tip, color)
+            }
         }
         i++
     }
@@ -374,9 +471,17 @@ private fun DrawScope.humps(gy: Float, amp: Float, dx: Float, color: Color, seed
     drawPath(path, color)
 }
 
+/** Water band whose top edge dissolves into the sky — no hard rectangle edge. */
 private fun DrawScope.sea(gy: Float, topY: Float, color: Color, dx: Float) {
-    drawRect(color, topLeft = Offset(dx - size.width * 0.3f, topY),
-        size = Size(size.width * 1.6f, gy - topY))
+    drawRect(
+        Brush.verticalGradient(
+            0f to color.copy(alpha = 0f),
+            0.45f to color,
+            startY = topY, endY = gy,
+        ),
+        topLeft = Offset(dx - size.width * 0.3f, topY),
+        size = Size(size.width * 1.6f, gy - topY),
+    )
 }
 
 private fun DrawScope.tree(x: Float, gy: Float, hgt: Float, color: Color) {
@@ -427,15 +532,42 @@ private fun DrawScope.palm(x: Float, gy: Float, hgt: Float, color: Color) {
     }
 }
 
+/** Steam locomotive facing right: boiler, cab, chimney, dome, small wheels. */
 private fun DrawScope.train(x: Float, gy: Float, scale: Float, color: Color, p: ScenePalette, a: Float) {
     val h = size.height * scale
-    drawRect(color, topLeft = Offset(x, gy - h * 0.62f), size = Size(h * 1.15f, h * 0.42f))
-    drawRect(color, topLeft = Offset(x - h * 0.5f, gy - h * 0.95f), size = Size(h * 0.55f, h * 0.75f))
-    drawRect(color, topLeft = Offset(x + h * 0.85f, gy - h * 0.98f), size = Size(h * 0.14f, h * 0.4f))
-    drawCircle(color, h * 0.12f, Offset(x + h * 0.45f, gy - h * 0.62f))
+    // Frame linking the wheels.
+    drawRect(color, topLeft = Offset(x - h * 0.35f, gy - h * 0.22f), size = Size(h * 1.3f, h * 0.13f))
+    // Boiler.
+    drawRect(color, topLeft = Offset(x, gy - h * 0.58f), size = Size(h * 0.95f, h * 0.36f))
+    drawCircle(color, h * 0.07f, Offset(x + h * 0.42f, gy - h * 0.58f))
+    // Cab at the rear.
+    drawRect(color, topLeft = Offset(x - h * 0.38f, gy - h * 0.85f), size = Size(h * 0.42f, h * 0.63f))
+    // Chimney at the front.
+    drawRect(color, topLeft = Offset(x + h * 0.76f, gy - h * 0.82f), size = Size(h * 0.12f, h * 0.26f))
     val wheel = lerp(color, Color.Black, 0.4f)
-    for (i in 0..2) drawCircle(wheel, h * 0.16f, Offset(x + h * (0.15f + i * 0.4f), gy - h * 0.1f))
-    smoke(x + h * 0.92f, gy - h * 1.12f, lerp(p.skyBottom, Color.White, 0.35f), a)
+    for (i in 0..2) drawCircle(wheel, h * 0.11f, Offset(x + h * (0.02f + i * 0.36f), gy - h * 0.11f))
+    if (p.lightAlpha > 0f && a > 0f) {
+        // Warm cab window at dusk and night.
+        drawRect(p.light, topLeft = Offset(x - h * 0.28f, gy - h * 0.74f),
+            size = Size(h * 0.14f, h * 0.15f), alpha = 0.8f * p.lightAlpha * a)
+    }
+    smoke(x + h * 0.82f, gy - h * 0.92f, lerp(p.skyBottom, Color.White, 0.35f), a)
+}
+
+/** Sparse warm windows on a roofline; lit only at dusk and night. */
+private fun DrawScope.windows(
+    x0: Float, x1: Float, gy: Float, bandTop: Float, p: ScenePalette, a: Float, seed: Int,
+) {
+    if (p.lightAlpha <= 0f || a <= 0f) return
+    val h = size.height
+    val count = ((x1 - x0) / (size.width * 0.03f)).toInt().coerceAtLeast(0)
+    for (i in 0 until count) {
+        if (frac(sin((i + seed) * 5.77) * 211.3) < 0.45f) continue
+        val wx = x0 + (x1 - x0) * frac(sin((i + seed) * 3.13) * 91.3)
+        val wy = bandTop + (gy - bandTop) * frac(sin((i + seed) * 8.41) * 57.1)
+        drawRect(p.light, topLeft = Offset(wx, wy), size = Size(h * 0.008f, h * 0.012f),
+            alpha = 0.5f * p.lightAlpha * a)
+    }
 }
 
 private fun DrawScope.mast(x: Float, gy: Float, hgt: Float, color: Color) {
@@ -487,13 +619,21 @@ private fun DrawScope.lighthouse(x: Float, gy: Float, hgt: Float, color: Color, 
     }
     drawPath(roof, color)
     if (p.lightAlpha > 0f && a > 0f) {
+        // Soft fan beam: fades with distance, no hard wedge edges in the sky.
         val beam = Path().apply {
             moveTo(x, gy - hgt - hgt * 0.05f)
-            lineTo(x - size.width * 0.4f, gy - hgt - hgt * 0.22f)
-            lineTo(x - size.width * 0.4f, gy - hgt + hgt * 0.12f)
+            lineTo(x - size.width * 0.38f, gy - hgt - hgt * 0.14f)
+            lineTo(x - size.width * 0.38f, gy - hgt + hgt * 0.04f)
             close()
         }
-        drawPath(beam, p.light, alpha = 0.14f * p.lightAlpha * a)
+        drawPath(
+            beam,
+            Brush.horizontalGradient(
+                0f to p.light.copy(alpha = 0.22f * p.lightAlpha * a),
+                1f to p.light.copy(alpha = 0f),
+                startX = x, endX = x - size.width * 0.38f,
+            ),
+        )
     }
     glow(x, gy - hgt - hgt * 0.05f, hgt * 0.05f, p, a)
 }
@@ -513,19 +653,45 @@ private fun DrawScope.clockTower(x: Float, gy: Float, hgt: Float, color: Color, 
     drawCircle(clockColor, wd * 0.28f, Offset(x, gy - hgt * 0.82f), alpha = clockAlpha)
 }
 
-private fun DrawScope.eiffel(x: Float, gy: Float, hgt: Float, color: Color) {
-    val path = Path().apply {
-        moveTo(x - hgt * 0.28f, gy)
-        quadraticTo(x - hgt * 0.1f, gy - hgt * 0.55f, x, gy - hgt)
-        quadraticTo(x + hgt * 0.1f, gy - hgt * 0.55f, x + hgt * 0.28f, gy)
-        lineTo(x + hgt * 0.2f, gy)
-        quadraticTo(x + hgt * 0.07f, gy - hgt * 0.5f, x, gy - hgt * 0.88f)
-        quadraticTo(x - hgt * 0.07f, gy - hgt * 0.5f, x - hgt * 0.2f, gy)
-        close()
+/** A row of warm port lights along a pier, lit at dusk and night. */
+private fun DrawScope.pierLights(x0: Float, x1: Float, y: Float, p: ScenePalette, a: Float) {
+    if (p.lightAlpha <= 0f || a <= 0f) return
+    var x = x0
+    while (x <= x1) {
+        glow(x, y, size.height * 0.007f, p, a)
+        x += (x1 - x0) / 7f
     }
-    drawPath(path, color)
-    drawRect(color, topLeft = Offset(x - hgt * 0.16f, gy - hgt * 0.42f), size = Size(hgt * 0.32f, hgt * 0.03f))
-    drawRect(color, topLeft = Offset(x - hgt * 0.08f, gy - hgt * 0.68f), size = Size(hgt * 0.16f, hgt * 0.025f))
+}
+
+/** Two or three distant gulls, only by day and dusk. */
+private fun DrawScope.birds(p: ScenePalette, a: Float) {
+    if (p.starAlpha > 0.4f || a <= 0f) return
+    val w = size.width
+    val h = size.height
+    val col = lerp(p.far, p.skyTop, 0.3f)
+    for (i in 0..2) {
+        val bx = w * (0.18f + 0.28f * frac(sin(i * 7.7) * 31.1))
+        val by = h * (0.16f + 0.12f * frac(sin(i * 3.1) * 57.7))
+        val wing = Stroke(width = h * 0.004f, cap = StrokeCap.Round)
+        drawArc(col, 205f, 55f, useCenter = false, topLeft = Offset(bx - h * 0.024f, by),
+            size = Size(h * 0.024f, h * 0.02f), alpha = 0.55f * a, style = wing)
+        drawArc(col, 280f, 55f, useCenter = false, topLeft = Offset(bx, by),
+            size = Size(h * 0.024f, h * 0.02f), alpha = 0.55f * a, style = wing)
+    }
+}
+
+/** A low fence receding along the road edge. */
+private fun DrawScope.fence(x0: Float, y0: Float, x1: Float, y1: Float, color: Color) {
+    val sw = size.height * 0.005f
+    drawLine(color, Offset(x0, y0 - size.height * 0.025f), Offset(x1, y1 - size.height * 0.045f),
+        strokeWidth = sw)
+    for (i in 0..5) {
+        val t = i / 5f
+        val px = mix(x0, x1, t)
+        val py = mix(y0, y1, t)
+        val ph = mix(size.height * 0.035f, size.height * 0.06f, t)
+        drawLine(color, Offset(px, py), Offset(px, py - ph), strokeWidth = sw)
+    }
 }
 
 private fun DrawScope.crane(x: Float, gy: Float, hgt: Float, color: Color) {
@@ -663,29 +829,41 @@ private fun DrawScope.tunnel(cx: Float, gy: Float, wd: Float, hgt: Float, color:
     drawPath(path, color)
 }
 
+/** Jagged mountain ridge across the full width with snow caps on the peaks. */
 private fun DrawScope.peaks(gy: Float, dx: Float, color: Color, snow: Color) {
     val w = size.width
     val h = size.height
-    val tops = listOf(Triple(0.12f, 0.5f, 0.34f), Triple(0.45f, 0.62f, 0.4f), Triple(0.8f, 0.48f, 0.36f))
-    for ((cxF, hF, hwF) in tops) {
-        val cx = cxF * w + dx
-        val ph = hF * h
-        val hw = hwF * w
-        val path = Path().apply {
-            moveTo(cx - hw, gy)
-            lineTo(cx, gy - ph)
-            lineTo(cx + hw, gy)
-            close()
-        }
-        drawPath(path, color)
+    val amp = h * 0.34f
+    val seed = 3.7
+    val tops = mutableListOf<Pair<Offset, Float>>()
+    val path = Path()
+    var x = -w * 0.3f + dx
+    var k = 0
+    path.moveTo(x, gy)
+    while (x < w * 1.3f + dx) {
+        val peakH = amp * (0.55f + 0.45f * frac(sin(seed + k * 7.9) * 51.3))
+        val peakX = x + w * (0.09f + 0.11f * frac(sin(seed + k * 3.3) * 77.1))
+        path.lineTo(peakX, gy - peakH)
+        tops += Offset(peakX, gy - peakH) to peakH
+        val valleyY = gy - amp * 0.3f * (0.4f + 0.6f * frac(sin(seed + k * 5.1) * 23.7))
+        val valleyX = peakX + w * (0.07f + 0.09f * frac(sin(seed + k * 9.7) * 41.3))
+        path.lineTo(valleyX, valleyY)
+        x = valleyX
+        k++
+    }
+    path.lineTo(w * 1.3f + dx, gy)
+    path.lineTo(w * 1.3f + dx, size.height)
+    path.lineTo(-w * 0.3f + dx, size.height)
+    path.close()
+    drawPath(path, color)
+    for ((top, ph) in tops) {
         val cap = Path().apply {
-            moveTo(cx - hw * 0.24f, gy - ph * 0.72f)
-            lineTo(cx, gy - ph)
-            lineTo(cx + hw * 0.24f, gy - ph * 0.72f)
-            lineTo(cx + hw * 0.14f, gy - ph * 0.66f)
-            lineTo(cx + hw * 0.05f, gy - ph * 0.72f)
-            lineTo(cx - hw * 0.06f, gy - ph * 0.64f)
-            lineTo(cx - hw * 0.15f, gy - ph * 0.71f)
+            moveTo(top.x - ph * 0.26f, top.y + ph * 0.3f)
+            lineTo(top.x, top.y)
+            lineTo(top.x + ph * 0.26f, top.y + ph * 0.3f)
+            lineTo(top.x + ph * 0.14f, top.y + ph * 0.36f)
+            lineTo(top.x, top.y + ph * 0.27f)
+            lineTo(top.x - ph * 0.17f, top.y + ph * 0.38f)
             close()
         }
         drawPath(cap, snow)
@@ -756,25 +934,31 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
     if (a <= 0f) return
     val w = size.width
     val h = size.height
-    val gy = h * 0.8f
+    val gy = h * GROUND_FRACTION
     val far = p.far.fade(a)
     val mid = p.mid.fade(a)
     val near = p.near.fade(a)
     when (scene) {
         SceneKind.LONDON -> when (layer) {
             SceneLayer.FAR -> {
-                roofs(gy - h * 0.05f, h * 0.16f, dx, far, seed = 3, chimneys = true)
-                clockTower(0.74f * w + dx, gy - h * 0.05f, h * 0.3f, far, p, a)
+                roofs(gy - h * 0.04f, h * 0.14f, dx, far, seed = 3, chimneys = true)
+                spire(0.14f * w + dx, gy - h * 0.04f, h * 0.32f, far)
+                clockTower(0.76f * w + dx, gy - h * 0.04f, h * 0.26f, far, p, a)
             }
             SceneLayer.MID -> {
-                roofs(gy, h * 0.2f, dx, mid, seed = 11, chimneys = true)
-                bigArch(0.3f * w + dx, gy, w * 0.5f, h * 0.18f, mid)
+                roofs(gy, h * 0.17f, dx, mid, seed = 11, chimneys = true)
+                bigArch(0.32f * w + dx, gy, w * 0.56f, h * 0.2f, mid)
+                windows(0.05f * w + dx, 0.95f * w + dx, gy - h * 0.03f, gy - h * 0.12f, p, a, seed = 5)
             }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
-                train(0.18f * w + dx, gy, 0.3f, near, p, a)
-                lamppost(0.66f * w + dx, gy, h * 0.24f, near, p, a)
-                lamppost(0.9f * w + dx, gy, h * 0.2f, near, p, a)
+                // Platform edge catching the lamplight.
+                drawLine(lerp(p.near, p.light, 0.35f).fade(a),
+                    Offset(dx - w * 0.4f, gy + h * 0.012f), Offset(dx + w * 1.4f, gy + h * 0.012f),
+                    strokeWidth = h * 0.006f, alpha = 0.35f * p.lightAlpha.coerceAtLeast(0.25f))
+                train(0.34f * w + dx, gy, 0.26f, near, p, a)
+                lamppost(0.68f * w + dx, gy, h * 0.26f, near, p, a)
+                lamppost(0.92f * w + dx, gy, h * 0.21f, near, p, a)
             }
         }
         SceneKind.DEPARTURE -> when (layer) {
@@ -782,7 +966,11 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
                 humps(gy - h * 0.02f, h * 0.1f, dx, far, seed = 2.7)
                 roofs(gy - h * 0.02f, h * 0.07f, dx, far, seed = 5, chimneys = false)
             }
-            SceneLayer.MID -> roofs(gy, h * 0.12f, dx, mid, seed = 9, chimneys = true)
+            SceneLayer.MID -> {
+                roofs(gy, h * 0.11f, dx, mid, seed = 9, chimneys = true)
+                tree(0.55f * w + dx, gy, h * 0.1f, mid)
+                tree(0.72f * w + dx, gy, h * 0.08f, mid)
+            }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
                 val road = Path().apply {
@@ -793,6 +981,7 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
                     close()
                 }
                 drawPath(road, lerp(p.near, p.far, 0.5f).fade(a))
+                fence(0.36f * w + dx, gy, 0.08f * w + dx, h * 0.97f, near)
                 telegraph(gy, dx, near)
                 tree(0.3f * w + dx, gy, h * 0.12f, near)
                 tree(0.88f * w + dx, gy, h * 0.15f, near)
@@ -806,21 +995,25 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
                 drawRect(far, topLeft = Offset(boatX, boatY - h * 0.015f), size = Size(w * 0.05f, h * 0.015f))
                 drawLine(far, Offset(boatX + w * 0.025f, boatY - h * 0.015f),
                     Offset(boatX + w * 0.025f, boatY - h * 0.045f), strokeWidth = h * 0.006f)
+                birds(p, a)
             }
             SceneLayer.MID -> {
+                // White cliffs: stepped flat-top silhouette, dimmed to a shadow at night.
                 val cliff = Path().apply {
-                    moveTo(0.45f * w + dx, gy)
-                    lineTo(0.5f * w + dx, gy - h * 0.3f)
-                    lineTo(0.95f * w + dx, gy - h * 0.34f)
-                    lineTo(w * 1.2f + dx, gy - h * 0.1f)
+                    moveTo(0.5f * w + dx, gy)
+                    lineTo(0.55f * w + dx, gy - h * 0.2f)
+                    lineTo(0.68f * w + dx, gy - h * 0.22f)
+                    lineTo(0.72f * w + dx, gy - h * 0.245f)
+                    lineTo(0.95f * w + dx, gy - h * 0.26f)
+                    lineTo(w * 1.2f + dx, gy - h * 0.08f)
                     lineTo(w * 1.2f + dx, gy)
                     close()
                 }
-                drawPath(cliff, lerp(p.far, Color(0xFFF0EBDD), 0.6f).fade(a))
+                drawPath(cliff, lerp(lerp(p.far, Color(0xFFF0EBDD), 0.6f), p.far, p.starAlpha * 0.85f).fade(a))
             }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
-                railing(0.02f * w + dx, 0.5f * w + dx, gy, h * 0.07f, near)
+                railing(0.02f * w + dx, 0.5f * w + dx, gy, h * 0.06f, near)
                 lighthouse(0.85f * w + dx, gy, h * 0.3f, near, p, a)
             }
         }
@@ -828,11 +1021,13 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
             SceneLayer.FAR -> {
                 sea(gy - h * 0.02f, gy - h * 0.14f, lerp(p.skyBottom, p.far, 0.55f).fade(a), dx)
                 roofs(gy - h * 0.12f, h * 0.05f, dx, far, seed = 21, chimneys = false)
+                birds(p, a)
             }
             SceneLayer.MID -> {
                 crane(0.2f * w + dx, gy - h * 0.02f, h * 0.16f, mid)
                 crane(0.55f * w + dx, gy - h * 0.02f, h * 0.13f, mid)
                 drawRect(mid, topLeft = Offset(0.6f * w + dx, gy - h * 0.08f), size = Size(w * 0.35f, h * 0.06f))
+                pierLights(0.62f * w + dx, 0.92f * w + dx, gy - h * 0.085f, p, a)
             }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
@@ -844,20 +1039,31 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
         SceneKind.PARIS -> when (layer) {
             SceneLayer.FAR -> {
                 roofs(gy - h * 0.03f, h * 0.12f, dx, far, seed = 17, chimneys = true)
-                eiffel(0.52f * w + dx, gy - h * 0.03f, h * 0.42f, far)
+                dome(0.3f * w + dx, gy - h * 0.03f, w * 0.11f, far)
+                spire(0.68f * w + dx, gy - h * 0.03f, h * 0.28f, far)
             }
-            SceneLayer.MID -> roofs(gy, h * 0.18f, dx, mid, seed = 23, chimneys = true)
+            SceneLayer.MID -> {
+                roofs(gy, h * 0.16f, dx, mid, seed = 23, chimneys = true)
+                windows(0.05f * w + dx, 0.95f * w + dx, gy - h * 0.02f, gy - h * 0.1f, p, a, seed = 8)
+            }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
-                bigArch(0.32f * w + dx, gy, w * 0.4f, h * 0.24f, near)
-                train(0.58f * w + dx, gy, 0.18f, near, p, a)
-                lamppost(0.08f * w + dx, gy, h * 0.2f, near, p, a)
-                lamppost(0.82f * w + dx, gy, h * 0.2f, near, p, a)
+                bigArch(0.32f * w + dx, gy, w * 0.42f, h * 0.22f, near)
+                train(0.62f * w + dx, gy, 0.2f, near, p, a)
+                lamppost(0.06f * w + dx, gy, h * 0.2f, near, p, a)
+                lamppost(0.9f * w + dx, gy, h * 0.19f, near, p, a)
             }
         }
         SceneKind.ALPS -> when (layer) {
-            SceneLayer.FAR -> peaks(gy - h * 0.02f, dx, far, lerp(p.far, Color.White, 0.75f).fade(a))
-            SceneLayer.MID -> humps(gy, h * 0.22f, dx, mid, seed = 7.3)
+            SceneLayer.FAR -> peaks(gy - h * 0.02f, dx, far,
+                lerp(lerp(p.far, Color.White, 0.75f), p.far, p.starAlpha * 0.7f).fade(a))
+            SceneLayer.MID -> {
+                humps(gy, h * 0.22f, dx, mid, seed = 7.3)
+                fir(0.2f * w + dx, gy, h * 0.13f, mid)
+                fir(0.34f * w + dx, gy, h * 0.1f, mid)
+                fir(0.62f * w + dx, gy, h * 0.14f, mid)
+                fir(0.78f * w + dx, gy, h * 0.1f, mid)
+            }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
                 drawRect(lerp(p.near, Color.White, 0.5f), topLeft = Offset(dx - w * 0.4f, gy),
@@ -867,6 +1073,8 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
                 fir(0.72f * w + dx, gy, h * 0.22f, near)
                 fir(0.85f * w + dx, gy, h * 0.16f, near)
                 tunnel(0.5f * w + dx, gy, w * 0.2f, h * 0.16f, lerp(p.near, Color.Black, 0.55f).fade(a))
+                embankment(0.52f * w + dx, 1.05f * w + dx, gy, h * 0.05f,
+                    lerp(p.near, p.mid, 0.2f).fade(a), near)
             }
         }
         SceneKind.TURIN -> when (layer) {
@@ -877,6 +1085,7 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
             }
             SceneLayer.MID -> {
                 roofs(gy, h * 0.08f, dx, mid, seed = 31, chimneys = false)
+                windows(0.05f * w + dx, 0.95f * w + dx, gy - h * 0.01f, gy - h * 0.06f, p, a, seed = 12)
                 cypress(0.15f * w + dx, gy, h * 0.16f, mid)
                 cypress(0.24f * w + dx, gy, h * 0.12f, mid)
                 cypress(0.55f * w + dx, gy, h * 0.15f, mid)
@@ -897,6 +1106,7 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
             }
             SceneLayer.MID -> {
                 drawRect(mid, topLeft = Offset(0.05f * w + dx, gy - h * 0.07f), size = Size(w * 0.35f, h * 0.05f))
+                pierLights(0.08f * w + dx, 0.38f * w + dx, gy - h * 0.075f, p, a)
                 mast(0.45f * w + dx, gy - h * 0.02f, h * 0.16f, mid)
                 mast(0.55f * w + dx, gy - h * 0.02f, h * 0.19f, mid)
                 mast(0.66f * w + dx, gy - h * 0.02f, h * 0.14f, mid)
@@ -911,10 +1121,13 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
         SceneKind.MEDITERRANEAN -> when (layer) {
             SceneLayer.FAR -> {
                 clouds(lerp(p.skyBottom, Color.White, 0.4f), a)
-                sea(gy, h * 0.5f, lerp(p.skyBottom, p.far, 0.5f).fade(a), dx)
+                sea(h * 0.86f, h * 0.5f, lerp(p.skyBottom, p.far, 0.5f).fade(a), dx)
                 glints(h * 0.78f, p.celestial, (0.25f + p.lightAlpha * 0.5f) * a)
             }
-            SceneLayer.MID -> waves(h * 0.72f, dx, mid)
+            SceneLayer.MID -> {
+                waves(h * 0.72f, dx, mid)
+                waves(h * 0.8f, dx + w * 0.07f, mid)
+            }
             SceneLayer.NEAR -> {
                 val deck = Path().apply {
                     moveTo(-0.2f * w + dx, h)
@@ -933,6 +1146,8 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
                     px += w * 0.1f
                 }
                 drawRect(near, topLeft = Offset(0.7f * w + dx, h * 0.6f), size = Size(w * 0.045f, h * 0.24f))
+                drawRect(lerp(p.near, Color.White, 0.45f).fade(a),
+                    topLeft = Offset(0.7f * w + dx, h * 0.64f), size = Size(w * 0.045f, h * 0.02f))
                 smoke(0.72f * w + dx, h * 0.58f, lerp(p.skyBottom, Color.White, 0.3f), a)
             }
         }
@@ -947,14 +1162,24 @@ private fun DrawScope.drawSceneLayer(scene: SceneKind, layer: SceneLayer, p: Sce
                 humps(gy, h * 0.07f, dx, mid, seed = 9.4)
                 palm(0.16f * w + dx, gy, h * 0.22f, mid)
                 palm(0.28f * w + dx, gy, h * 0.17f, mid)
+                palm(0.9f * w + dx, gy, h * 0.19f, mid)
             }
             SceneLayer.NEAR -> {
                 ground(near, gy, dx)
-                mast(0.5f * w + dx, gy, h * 0.26f, near)
-                mast(0.64f * w + dx, gy, h * 0.2f, near)
-                drawCircle(near, h * 0.02f, Offset(0.78f * w + dx, gy - h * 0.015f))
-                drawCircle(near, h * 0.015f, Offset(0.85f * w + dx, gy - h * 0.01f))
-                drawCircle(near, h * 0.018f, Offset(0.38f * w + dx, gy - h * 0.012f))
+                // Canal: water strip with a dissolving far edge, shipping, near bank.
+                val water = lerp(p.skyBottom, p.far, 0.4f).fade(a)
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to water.copy(alpha = 0f), 0.45f to water,
+                        startY = gy, endY = gy + h * 0.09f,
+                    ),
+                    topLeft = Offset(dx - w * 0.4f, gy), size = Size(w * 1.8f, h * 0.09f),
+                )
+                mast(0.56f * w + dx, gy + h * 0.07f, h * 0.22f, near)
+                mast(0.7f * w + dx, gy + h * 0.06f, h * 0.16f, near)
+                steamer(0.1f * w + dx, 0.4f * w + dx, gy + h * 0.085f, near, p, a)
+                drawRect(lerp(p.near, Color.Black, 0.3f).fade(a),
+                    topLeft = Offset(dx - w * 0.4f, gy + h * 0.1f), size = Size(w * 1.8f, h))
             }
         }
     }

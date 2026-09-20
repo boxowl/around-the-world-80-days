@@ -23,10 +23,13 @@ class SyntheticProgressSeedTest {
         val repo = ExpeditionRepository(ExpeditionDatabase.get(context), ExpeditionStore(context))
         val existing = repo.load()
         if (existing != null) return@runBlocking
-        val start = Instant.now().minusSeconds(3_600)
+        val steps = arguments.getString("seedSteps")?.toLongOrNull() ?: 4_500L
+        val now = Instant.now()
+        val start = now.minusSeconds(3_600)
         val journey = repo.start(JourneyMode.FREE, start, ZoneId.systemDefault())
-        val updated = repo.reconcile(mapOf(journey.startDate to 4_500L), Instant.now())
-        assertEquals(4_500L, updated.totalSteps)
+        val today = now.atZone(journey.zone).toLocalDate()
+        val updated = repo.reconcile(mapOf(today to steps), now)
+        assertEquals(steps, updated.totalSteps)
         assertEquals(updated, repo.load())
     }
 }

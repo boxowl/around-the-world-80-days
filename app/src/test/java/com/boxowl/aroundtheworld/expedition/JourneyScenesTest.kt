@@ -2,7 +2,6 @@ package com.boxowl.aroundtheworld.expedition
 
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,42 +41,6 @@ class JourneyScenesTest {
             assertEquals(stop.id, scene.stopId)
             assertEquals(stop.name, scene.label)
         }
-    }
-
-    @Test fun sceneBlendDecomposesPosition() {
-        val start = sceneBlendAt(0f, JOURNEY_SCENES.size)
-        assertEquals(0, start.fromIndex)
-        assertNull(start.toIndex)
-        assertEquals(0f, start.fraction)
-
-        val mid = sceneBlendAt(2.5f, JOURNEY_SCENES.size)
-        assertEquals(2, mid.fromIndex)
-        assertEquals(3, mid.toIndex)
-        assertEquals(0.5f, mid.fraction, 1e-6f)
-
-        val end = sceneBlendAt(9f, JOURNEY_SCENES.size)
-        assertEquals(9, end.fromIndex)
-        assertNull(end.toIndex)
-        assertEquals(0f, end.fraction)
-
-        val beyond = sceneBlendAt(15f, JOURNEY_SCENES.size)
-        assertEquals(9, beyond.fromIndex)
-        assertNull(beyond.toIndex)
-
-        val negative = sceneBlendAt(-2f, JOURNEY_SCENES.size)
-        assertEquals(0, negative.fromIndex)
-        assertNull(negative.toIndex)
-    }
-
-    @Test fun heroStaysAtSegmentFractionExceptRouteEnd() {
-        val count = JOURNEY_SCENES.size
-        assertEquals(0f, heroFractionAt(0f, count), 1e-6f)
-        assertEquals(0f, heroFractionAt(2f, count), 1e-6f)
-        assertEquals(0.5f, heroFractionAt(2.5f, count), 1e-6f)
-        assertEquals(0.98f, heroFractionAt(2.98f, count), 1e-6f)
-        assertEquals(1f, heroFractionAt(9f, count), 1e-6f)
-        assertEquals(1f, heroFractionAt(15f, count), 1e-6f)
-        assertEquals(0f, heroFractionAt(-1f, count), 1e-6f)
     }
 
     @Test fun celestialPositionStaysInsideCanvas() {

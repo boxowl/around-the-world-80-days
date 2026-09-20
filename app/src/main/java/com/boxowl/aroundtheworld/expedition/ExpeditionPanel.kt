@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -156,13 +157,19 @@ private fun ActiveExpedition(
     val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(expedition.zone)
     var page by rememberSaveable { mutableStateOf("journey") }
     var dismissedEventIds by rememberSaveable { mutableStateOf(listOf<String>()) }
+    // Per-tab scroll positions survive tab switches and configuration changes.
+    val journeyScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    val mapScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    val diaryScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    val healthScroll = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val shownEvent = newEvent?.takeIf { page != "diary" && it.id !in dismissedEventIds }
             when (page) {
-                "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, onRefresh)
+                "journey" -> JourneyHome(expedition, now, current.sync, current.syncing, onRefresh,
+                    journeyScroll)
                 "map" -> Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    Modifier.fillMaxSize().verticalScroll(mapScroll).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (shownEvent != null) {
@@ -175,7 +182,7 @@ private fun ActiveExpedition(
                     FirstLegMap(expedition, onOpenDiary = { page = "diary" })
                 }
                 "diary" -> Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    Modifier.fillMaxSize().verticalScroll(diaryScroll).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text("Дневник путешествия", style = MaterialTheme.typography.titleLarge,
@@ -207,7 +214,7 @@ private fun ActiveExpedition(
                     }
                 }
                 else -> Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    Modifier.fillMaxSize().verticalScroll(healthScroll).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (shownEvent != null) {

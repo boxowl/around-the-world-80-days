@@ -62,7 +62,7 @@ internal fun FirstLegMap(expedition: Expedition, onOpenDiary: () -> Unit) {
             else -> "Известный путь: ${formatJourneySteps(map.knownSteps.coerceAtMost(map.goal))} из ${formatJourneySteps(map.goal)} шагов. " +
                 (if (map.fractionToNext > 0f) "Участок: ${current.name} → ${next.name}. "
                 else "Сейчас: ${current.name}. ") +
-                "До ${next.name}: ${formatJourneySteps(next.threshold - map.knownSteps)} шагов."
+                "Следующая остановка — ${next.name} · ещё ${formatJourneySteps(next.threshold - map.knownSteps)} шагов."
         }, color = ExpeditionMuted)
         if (!largeFont) RouteIllustration(map)
         else Text("Схема маршрута ниже представлена списком: все остановки и их состояния доступны текстом.",

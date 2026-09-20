@@ -1,5 +1,6 @@
 package com.boxowl.aroundtheworld.expedition
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +49,7 @@ internal fun JourneyHome(
     sync: SyncResult?,
     syncing: Boolean,
     onRefresh: () -> Unit,
+    scrollState: ScrollState,
 ) {
     val today = now.atZone(expedition.zone).toLocalDate()
     val stepsToday = expedition.dailySteps[today]
@@ -63,7 +64,7 @@ internal fun JourneyHome(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val sceneHeight = maxHeight * 0.58f
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize().verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth().height(sceneHeight)) {
@@ -144,7 +145,7 @@ internal fun JourneyHome(
                     when {
                         next == null -> "Путь главы: ${formatJourneySteps(expedition.firstLegSteps)} " +
                             "из ${formatJourneySteps(expedition.firstLegGoal)} шагов"
-                        hasKnownProgress -> "До ${next.name} ещё " +
+                        hasKnownProgress -> "Следующая остановка — ${next.name} · ещё " +
                             "${formatJourneySteps(next.threshold - expedition.totalSteps)} шагов · " +
                             "пройдено ${formatJourneySteps(expedition.firstLegSteps)} " +
                             "из ${formatJourneySteps(expedition.firstLegGoal)}"

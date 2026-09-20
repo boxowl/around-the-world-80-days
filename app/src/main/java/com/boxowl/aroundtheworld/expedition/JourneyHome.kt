@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.boxowl.aroundtheworld.ExpeditionGold
 import com.boxowl.aroundtheworld.ExpeditionMuted
 import com.boxowl.aroundtheworld.ExpeditionText
+import com.boxowl.aroundtheworld.expedition.scene.SeamlessJourneyCanvas
 import java.time.Instant
 import java.util.Locale
 
@@ -68,7 +69,7 @@ internal fun JourneyHome(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth().height(sceneHeight)) {
-                JourneySceneCanvas(projection, localTime, Modifier.fillMaxSize())
+                SeamlessJourneyCanvas(projection, localTime, Modifier.fillMaxSize())
                 // The foreground dissolves into the shell: no visible picture edge.
                 Box(
                     Modifier.fillMaxWidth().height(sceneHeight * 0.32f)

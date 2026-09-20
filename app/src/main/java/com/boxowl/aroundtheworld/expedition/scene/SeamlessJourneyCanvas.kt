@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -64,31 +65,47 @@ internal fun SeamlessJourneyCanvas(
         Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     }
     val position = remember { Animatable(targetPosition) }
+    val walkPhase = remember { mutableFloatStateOf(0f) }
+    val gait = remember { mutableFloatStateOf(0f) }
     val latestTarget by rememberUpdatedState(targetPosition)
+    val layout = FIRST_LEG_LAYOUT
     LaunchedEffect(reducedMotion) {
         while (true) {
             val target = latestTarget
             if (reducedMotion || position.value == target) {
                 if (position.value != target) position.snapTo(target)
+                gait.floatValue = 0f // at rest the hero stands, the stride freezes
                 // At rest: sleep until a new target arrives instead of polling frames.
                 snapshotFlow { latestTarget }.first { it != target }
             } else {
-                // New plan from the currently displayed value; a further target
-                // change abandons it and replans from wherever the display is.
+                // New plan from the currently displayed value. The step is
+                // applied BEFORE the target-change check: a continuously moving
+                // target (debug auto pass) would otherwise starve the plan into
+                // an endless replan without a single step. Replanning starts
+                // the next plan from the last frame's clock, so no frame is lost.
                 val from = position.value
-                val startNanos = withFrameNanos { it }
+                var startNanos = withFrameNanos { it }
+                var previousNanos = startNanos
                 var running = true
                 while (running) {
                     val now = withFrameNanos { it }
-                    if (latestTarget != target) break
+                    val before = layout.worldXAt(position.value)
                     val next = ChaseAnimation.chaseValueAt(from, target, (now - startNanos) / 1_000_000)
                     position.snapTo(next)
+                    val after = layout.worldXAt(next)
+                    val dt = ((now - previousNanos) / 1_000_000_000f).coerceIn(0f, 0.1f)
+                    previousNanos = now
+                    walkPhase.floatValue = WalkCycle.advancePhase(walkPhase.floatValue, after - before)
+                    gait.floatValue = WalkCycle.gaitAt(gait.floatValue, (after - before) / dt.coerceAtLeast(1e-3f), dt)
+                    if (latestTarget != target) {
+                        startNanos = now // replan from here, this frame already counted
+                        break
+                    }
                     running = next != target
                 }
             }
         }
     }
-    val layout = FIRST_LEG_LAYOUT
     Canvas(modifier.semantics { contentDescription = description }) {
         val viewWidth = size.width / size.height
         val heroWorldX = layout.worldXAt(position.value)
@@ -104,6 +121,8 @@ internal fun SeamlessJourneyCanvas(
             JourneyCamera.screenFraction(heroWorldX, SceneLayer.NEAR, cameraX, viewWidth) * size.width,
             TerrainProfile.groundYAt(layout, heroWorldX) * size.height,
             palette,
+            walkPhase.floatValue,
+            gait.floatValue,
         )
     }
 }

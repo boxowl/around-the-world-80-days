@@ -159,8 +159,10 @@ private fun JourneyDemoScreen(
                         OutlinedButton(onClick = { night = !night }) {
                             Text(if (night) "День" else "Ночь")
                         }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { stopAuto(); browseEnabled = !browseEnabled }) {
-                            Text(if (browseEnabled) "Просмотр вкл" else "Просмотр")
+                            Text(if (browseEnabled) "Просмотр: вкл" else "Просмотр: выкл")
                         }
                     }
                 }

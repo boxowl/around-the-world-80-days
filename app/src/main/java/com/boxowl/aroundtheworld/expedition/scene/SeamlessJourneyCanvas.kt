@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -322,7 +323,10 @@ internal fun SeamlessJourneyCanvas(
         }
         if (browseEnabled && JourneyBrowse.isBrowsing(browse.value, latestTarget)) {
             Surface(
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp),
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
                 contentColor = MaterialTheme.colorScheme.onSurface,

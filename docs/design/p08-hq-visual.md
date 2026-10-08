@@ -24,7 +24,7 @@
 
 ## Проверки
 
-- `./gradlew --offline :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` — зелёные: 77 unit-тестов, 0 падений (новые: 9 `ChaseAnimationTest`, 7 `WalkCycleTest`, 6 `TerrainSupportTest`; все контракты P07 threshold±ε проходят); lint 0 ошибок.
+- `./gradlew --offline :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` — зелёные: 71 unit-тест, 0 падений (новые: 9 `ChaseAnimationTest`, 7 `WalkCycleTest`, 6 `TerrainSupportTest`; все контракты P07 threshold±ε проходят); lint 0 ошибок.
 - `./gradlew --offline :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.syntheticSeed=allow` на Pixel 7 / Android 16 — 11/11 зелёные.
 - Видео (ускоренная debug-демонстрация 0.1 позиции/с, НЕ подтверждение реальных шагов; эмулятор, `screenrecord 540x1200`; записаны фиксированным интервалом, статичные хвосты не вырезались):
   - `dist/p08-london-dover.mp4` (~40 с): Лондон → загородный участок → Дувр → подход к Кале. Просмотрено целиком: границы неотличимы от обычного движения, герой идёт с циклом шага, телеграф/деревья/скалы без разрывов.

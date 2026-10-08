@@ -7,5 +7,12 @@
             android:exported="true"
             android:label="Journey demo"
             android:theme="@style/Theme.Expedition" />
+        <!-- Debug-only V21 globe prototype. Start explicitly with
+             adb shell am start -n com.boxowl.aroundtheworld/.debug.globe.GlobeProtoActivity -->
+        <activity
+            android:name=".debug.globe.GlobeProtoActivity"
+            android:exported="true"
+            android:label="Globe proto"
+            android:theme="@style/Theme.Expedition" />
     </application>
 </manifest>

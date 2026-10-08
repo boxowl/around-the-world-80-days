@@ -36,9 +36,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Debug-only demo of the seamless journey world (P07). Purely in-memory: it
- * never touches Room or Health Connect and never unlocks real diary events.
- * Not exported to the launcher; start with:
+ * Debug-only demo of the seamless journey world (P07) and the browse-over-the-
+ * past prototype (V2.1). Purely in-memory: it never touches Room or Health
+ * Connect and never unlocks real diary events. Not exported to the launcher; start with:
  *   adb shell am start -n com.boxowl.aroundtheworld/.debug.JourneyDemoActivity
  */
 class JourneyDemoActivity : ComponentActivity() {
@@ -47,12 +47,20 @@ class JourneyDemoActivity : ComponentActivity() {
         // Optional extras for scripted recordings:
         // --ef start <position> --ez auto <bool> --ez night <bool> --ei autodelay <seconds>
         // --ef back <positions> — after autodelay, jump back (downward correction demo)
+        // --ez browse true — enable the browse-over-the-past gesture (V2.1 proto)
+        // --ei confirmdelay <sec> --ef confirmdelta <positions> — after the delay,
+        // shift the confirmed position (simulates a sync arriving mid-browse)
         val start = intent.getFloatExtra("start", 0f).coerceIn(0f, 9f)
         val auto = intent.getBooleanExtra("auto", false)
         val night = intent.getBooleanExtra("night", false)
         val autoDelay = intent.getIntExtra("autodelay", 0)
         val back = intent.getFloatExtra("back", 0f)
-        setContent { JourneyDemoScreen(start, auto, night, autoDelay, back) }
+        val browse = intent.getBooleanExtra("browse", false)
+        val confirmDelay = intent.getIntExtra("confirmdelay", 0)
+        val confirmDelta = intent.getFloatExtra("confirmdelta", 0f)
+        setContent {
+            JourneyDemoScreen(start, auto, night, autoDelay, back, browse, confirmDelay, confirmDelta)
+        }
     }
 }
 
@@ -66,9 +74,13 @@ private fun JourneyDemoScreen(
     nightStart: Boolean,
     autoDelaySec: Int = 0,
     backPositions: Float = 0f,
+    browseStart: Boolean = false,
+    confirmDelaySec: Int = 0,
+    confirmDelta: Float = 0f,
 ) {
     var target by remember { mutableStateOf(initialPosition) }
     var night by remember { mutableStateOf(nightStart) }
+    var browseEnabled by remember { mutableStateOf(browseStart) }
     val scope = rememberCoroutineScope()
     var autoJob by remember { mutableStateOf<Job?>(null) }
 
@@ -99,6 +111,11 @@ private fun JourneyDemoScreen(
             if (autoDelaySec > 0) delay(autoDelaySec * 1000L)
             target = (target - backPositions).coerceAtLeast(0f)
         }
+        if (confirmDelta != 0f) {
+            // Simulated sync arriving mid-browse: only the confirmed boundary moves.
+            if (confirmDelaySec > 0) delay(confirmDelaySec * 1000L)
+            target = (target + confirmDelta).coerceIn(0f, 9f)
+        }
     }
 
     MaterialTheme(
@@ -117,6 +134,7 @@ private fun JourneyDemoScreen(
                         description = sceneDescriptionAt(target),
                         time = if (night) LocalTime.of(2, 0) else LocalTime.of(14, 0),
                         modifier = Modifier.fillMaxSize(),
+                        browseEnabled = browseEnabled,
                     )
                 }
                 Column(
@@ -140,6 +158,9 @@ private fun JourneyDemoScreen(
                         }) { Text("Коррекция −3") }
                         OutlinedButton(onClick = { night = !night }) {
                             Text(if (night) "День" else "Ночь")
+                        }
+                        OutlinedButton(onClick = { stopAuto(); browseEnabled = !browseEnabled }) {
+                            Text(if (browseEnabled) "Просмотр вкл" else "Просмотр")
                         }
                     }
                 }

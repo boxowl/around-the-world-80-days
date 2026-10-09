@@ -281,6 +281,9 @@ private fun GlobeCanvas(
         // Stops.
         val dotR = 3.5f.dp.toPx()
         labelPaint.textSize = 10.5f.sp.toPx()
+        val labelDx = 75.dp.toPx()
+        val labelDy = 16.dp.toPx()
+        val drawnLabels = mutableListOf<Offset>()
         for (mark in layout.stopMarks) {
             val p = mark.center
             drawCircle(Color.White, radius = dotR, center = p)
@@ -289,12 +292,19 @@ private fun GlobeCanvas(
                 drawCircle(HeroColor, radius = dotR + 3.dp.toPx(), center = p, style = Stroke(width = 1.4f.dp.toPx()))
             }
             if (showLabels) {
-                drawContext.canvas.nativeCanvas.drawText(
-                    mark.stop.name,
-                    p.x + dotR + 3.dp.toPx(),
-                    p.y - dotR,
-                    labelPaint,
-                )
+                // Cheap collision avoidance: skip labels crowding an already drawn one.
+                val crowded = drawnLabels.any {
+                    kotlin.math.abs(it.x - p.x) < labelDx && kotlin.math.abs(it.y - p.y) < labelDy
+                }
+                if (!crowded || mark.stop.name == selected) {
+                    drawContext.canvas.nativeCanvas.drawText(
+                        mark.stop.name,
+                        p.x + dotR + 3.dp.toPx(),
+                        p.y - dotR,
+                        labelPaint,
+                    )
+                    drawnLabels.add(p)
+                }
             }
         }
 

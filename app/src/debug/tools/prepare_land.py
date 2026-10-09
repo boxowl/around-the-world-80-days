@@ -68,9 +68,10 @@ def dp_simplify(points, tol):
 
 
 def signed_area(ring):
+    """Standard shoelace: positive for CCW rings in the lon/lat plane."""
     area = 0.0
     for (x1, y1), (x2, y2) in zip(ring, ring[1:]):
-        area += (x2 - x1) * (y2 + y1)
+        area += x1 * y2 - x2 * y1
     return area / 2.0
 
 

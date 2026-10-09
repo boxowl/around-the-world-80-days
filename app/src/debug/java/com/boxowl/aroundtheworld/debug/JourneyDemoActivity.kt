@@ -20,6 +20,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,6 +84,15 @@ private fun JourneyDemoScreen(
     var browseEnabled by remember { mutableStateOf(browseStart) }
     val scope = rememberCoroutineScope()
     var autoJob by remember { mutableStateOf<Job?>(null) }
+    // Screenrecord on the emulator encodes only when the screen changes; the
+    // seamless world intentionally does not redraw at rest, so static-scene
+    // recordings would otherwise capture single-digit frames. This debug-only
+    // tick keeps the compositor producing frames — proof that a frozen-looking
+    // recording is a genuinely still scene, not a stalled encoder.
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) withFrameNanos { tick++ }
+    }
 
     fun stopAuto() {
         autoJob?.cancel()
@@ -165,6 +175,11 @@ private fun JourneyDemoScreen(
                             Text(if (browseEnabled) "Просмотр: вкл" else "Просмотр: выкл")
                         }
                     }
+                    Text(
+                        "кадр $tick",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    )
                 }
             }
         }

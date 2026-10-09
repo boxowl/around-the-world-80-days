@@ -2,6 +2,7 @@ package com.boxowl.aroundtheworld
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
@@ -24,7 +25,13 @@ internal val ExpeditionLine = Color(0xFF2C3640)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Dark shell everywhere: force light status/navigation icons regardless
+        // of the system theme (default auto style paints them dark on our dark
+        // background — P08 readability fix).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
         setContent { ExpeditionScreen() }
     }
 }

@@ -102,6 +102,38 @@ internal object JourneyBrowse {
     /** True while the browsed position is meaningfully behind the confirmed one. */
     fun isBrowsing(browse: Float?, confirmed: Float): Boolean =
         browse != null && browse < confirmed - BROWSE_EPSILON
+
+    /**
+     * Exclusive writer of the camera position (V2.1 review fix). Exactly one
+     * owner at a time: the chase plan (CHASE), the finger (DRAG) or the fling
+     * (INERTIA). The gesture captures ownership atomically in [ownerOnDragStart]
+     * before the first applied delta and keeps it through the inertia until
+     * [ownerOnInertiaEnd]; the chase loop must check [chaseMayWrite] BEFORE
+     * applying every frame, so a stale plan frame can never roll the camera
+     * back after a capture.
+     */
+    enum class CameraOwner { CHASE, DRAG, INERTIA }
+
+    /** The chase plan may write the camera position only while it owns it. */
+    fun chaseMayWrite(owner: CameraOwner): Boolean = owner == CameraOwner.CHASE
+
+    /** Gesture start: the finger takes the camera from any state. */
+    fun ownerOnDragStart(): CameraOwner = CameraOwner.DRAG
+
+    /** Gesture end: the fling inherits ownership, otherwise the plan resumes. */
+    fun ownerOnDragEnd(startsInertia: Boolean): CameraOwner =
+        if (startsInertia) CameraOwner.INERTIA else CameraOwner.CHASE
+
+    /** Gesture cancelled (no fling): ownership returns to the plan. */
+    fun ownerOnGestureCancel(): CameraOwner = CameraOwner.CHASE
+
+    /**
+     * Inertia finished (stopped or cancelled). Ownership returns to the plan
+     * ONLY if inertia still holds it — a cancelled fling whose job ends after
+     * a new drag already captured the camera must not downgrade DRAG.
+     */
+    fun ownerOnInertiaEnd(current: CameraOwner): CameraOwner =
+        if (current == CameraOwner.INERTIA) CameraOwner.CHASE else current
 }
 
 /**
@@ -126,6 +158,14 @@ internal object JourneyBrowse {
  * boundary and never yanks the camera out of browsing; a backward correction
  * squeezes the browsed position to the new boundary. Reduced-motion: drag
  * follows the finger directly, return snaps instantly.
+ *
+ * Camera ownership (V2.1 review fix, [JourneyBrowse.CameraOwner]): exactly one
+ * writer of the camera position at a time. A drag captures ownership in
+ * `onDragStart` and keeps it through the fling; the chase loop re-checks
+ * [JourneyBrowse.chaseMayWrite] before applying EVERY frame, so a stale plan
+ * frame can never roll the camera back after a capture. When the fling ends,
+ * ownership returns to the plan, which resumes from the currently displayed
+ * value.
  */
 @Composable
 internal fun SeamlessJourneyCanvas(
@@ -159,31 +199,41 @@ internal fun SeamlessJourneyCanvas(
     val latestTarget by rememberUpdatedState(targetPosition)
     val scope = rememberCoroutineScope()
     var inertiaJob by remember { mutableStateOf<Job?>(null) }
+    var cameraOwner by remember { mutableStateOf(JourneyBrowse.CameraOwner.CHASE) }
 
-    /** Fling after a browse drag: exponential decay, hard stop at the confirmed boundary. */
+    /**
+     * Fling after a browse drag: exponential decay, hard stop at the confirmed
+     * boundary. Owns the camera (INERTIA) for its whole lifetime; ownership is
+     * released in `finally` and only if inertia still holds it — a fling
+     * cancelled by a new drag must not hand the camera back under the finger.
+     */
     suspend fun runBrowseInertia(initialVelocity: Float) {
-        var velocity = initialVelocity
-        var previousNanos = withFrameNanos { it }
-        while (abs(velocity) > JourneyBrowse.INERTIA_STOP_SPEED) {
-            val now = withFrameNanos { it }
-            val dt = ((now - previousNanos) / 1_000_000_000f).coerceIn(0f, 0.1f)
-            previousNanos = now
-            val before = layout.worldXAt(position.floatValue)
-            val next = JourneyBrowse.clampBrowse(
-                position.floatValue + velocity * dt, latestTarget, maxPosition,
-            )
-            position.floatValue = next
-            browse.value = next
-            val after = layout.worldXAt(next)
-            walkPhase.floatValue = WalkCycle.advancePhase(walkPhase.floatValue, after - before)
-            val strideSpeed = if (TerrainProfile.supportAt(layout, after) == TerrainProfile.Support.DECK) 0f
-                else (after - before) / dt.coerceAtLeast(1e-3f)
-            gait.floatValue = WalkCycle.gaitAt(gait.floatValue, strideSpeed, dt)
-            val boundary = latestTarget.coerceIn(0f, maxPosition)
-            if ((velocity > 0f && next >= boundary) || (velocity < 0f && next <= 0f)) break
-            velocity = JourneyBrowse.inertiaVelocityAt(velocity, dt)
+        try {
+            var velocity = initialVelocity
+            var previousNanos = withFrameNanos { it }
+            while (abs(velocity) > JourneyBrowse.INERTIA_STOP_SPEED) {
+                val now = withFrameNanos { it }
+                val dt = ((now - previousNanos) / 1_000_000_000f).coerceIn(0f, 0.1f)
+                previousNanos = now
+                val before = layout.worldXAt(position.floatValue)
+                val next = JourneyBrowse.clampBrowse(
+                    position.floatValue + velocity * dt, latestTarget, maxPosition,
+                )
+                position.floatValue = next
+                browse.value = next
+                val after = layout.worldXAt(next)
+                walkPhase.floatValue = WalkCycle.advancePhase(walkPhase.floatValue, after - before)
+                val strideSpeed = if (TerrainProfile.supportAt(layout, after) == TerrainProfile.Support.DECK) 0f
+                    else (after - before) / dt.coerceAtLeast(1e-3f)
+                gait.floatValue = WalkCycle.gaitAt(gait.floatValue, strideSpeed, dt)
+                val boundary = latestTarget.coerceIn(0f, maxPosition)
+                if ((velocity > 0f && next >= boundary) || (velocity < 0f && next <= 0f)) break
+                velocity = JourneyBrowse.inertiaVelocityAt(velocity, dt)
+            }
+            gait.floatValue = 0f
+        } finally {
+            cameraOwner = JourneyBrowse.ownerOnInertiaEnd(cameraOwner)
         }
-        gait.floatValue = 0f
     }
 
     LaunchedEffect(reducedMotion) {
@@ -193,15 +243,23 @@ internal fun SeamlessJourneyCanvas(
             // corrections squeeze the browsed position down to the new edge.
             browse.value = JourneyBrowse.squeezeBrowse(browse.value, latestTarget, maxPosition)
             val target = browse.value ?: latestTarget
-            if (reducedMotion || position.floatValue == target) {
+            if (!JourneyBrowse.chaseMayWrite(cameraOwner)) {
+                // The finger or the fling owns the camera: the plan must not
+                // write a single frame until ownership comes back.
+                snapshotFlow { cameraOwner }.first { JourneyBrowse.chaseMayWrite(it) }
+            } else if (reducedMotion || position.floatValue == target) {
                 if (position.floatValue != target) {
                     position.floatValue = target
                     gait.floatValue = 0f
                 }
                 // At rest: sleep until the effective target moves (confirmed
-                // change, drag, inertia or "К текущей позиции") instead of polling.
-                snapshotFlow { JourneyBrowse.effectiveTarget(browse.value, latestTarget, maxPosition) }
-                    .first { it != target }
+                // change, drag, inertia or "К текущей позиции") or a gesture
+                // captures the camera, instead of polling.
+                snapshotFlow {
+                    cameraOwner to JourneyBrowse.effectiveTarget(browse.value, latestTarget, maxPosition)
+                }.first { (owner, effective) ->
+                    !JourneyBrowse.chaseMayWrite(owner) || effective != target
+                }
             } else {
                 // New plan from the currently displayed value. The step is
                 // applied BEFORE the target-change check: a continuously moving
@@ -214,6 +272,7 @@ internal fun SeamlessJourneyCanvas(
                 var running = true
                 while (running) {
                     val now = withFrameNanos { it }
+                    if (!JourneyBrowse.chaseMayWrite(cameraOwner)) break
                     val before = layout.worldXAt(position.floatValue)
                     val next = ChaseAnimation.chaseValueAt(from, target, (now - startNanos) / 1_000_000)
                     position.floatValue = next
@@ -246,7 +305,12 @@ internal fun SeamlessJourneyCanvas(
             var dragVelocity = 0f
             detectHorizontalDragGestures(
                 onDragStart = {
+                    // Cancel the fling first: its `finally` must not downgrade
+                    // the DRAG ownership we are about to take.
                     inertiaJob?.cancel()
+                    // Atomic capture: from this line the chase plan cannot
+                    // write the camera until the fling after this drag ends.
+                    cameraOwner = JourneyBrowse.ownerOnDragStart()
                     // Enter browsing wherever the camera currently is (possibly mid-chase).
                     browse.value = JourneyBrowse.clampBrowse(
                         position.floatValue, latestTarget, maxPosition,
@@ -255,7 +319,9 @@ internal fun SeamlessJourneyCanvas(
                     dragVelocity = 0f
                 },
                 onDragEnd = {
-                    if (!reducedMotion && abs(dragVelocity) > JourneyBrowse.INERTIA_STOP_SPEED) {
+                    val startsInertia = !reducedMotion && abs(dragVelocity) > JourneyBrowse.INERTIA_STOP_SPEED
+                    cameraOwner = JourneyBrowse.ownerOnDragEnd(startsInertia)
+                    if (startsInertia) {
                         inertiaJob = scope.launch { runBrowseInertia(dragVelocity) }
                     } else {
                         gait.floatValue = 0f
@@ -263,6 +329,7 @@ internal fun SeamlessJourneyCanvas(
                     dragVelocity = 0f
                 },
                 onDragCancel = {
+                    cameraOwner = JourneyBrowse.ownerOnGestureCancel()
                     gait.floatValue = 0f
                     dragVelocity = 0f
                 },

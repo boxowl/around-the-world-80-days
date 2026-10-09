@@ -81,8 +81,7 @@ adb shell am start -n com.boxowl.aroundtheworld/.debug.globe.GlobeProtoActivity
   и двух полигонов, декодирование ассета. `:app:testDebugUnitTest` зелёный,
   `lintDebug` чистый.
 
-Скриншоты: `docs/screenshots/v21-*.png`; видео вращения с инерцией:
-`dist/v21-globe-demo.mp4` (не в Git).
+Скриншоты: [`v21-globe-europe.png`](../screenshots/v21-globe-europe.png) (Европа/Африка, герой у Суэца) и [`v21-globe-pacific.png`](../screenshots/v21-globe-pacific.png) (Тихий океан, антимеридиан). Видео вращения с инерцией: `dist/v21-globe-clean.mp4` (не в Git; записано 540x1200, просмотрено штабом).
 
 ## Ограничения прототипа
 

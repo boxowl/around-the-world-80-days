@@ -259,8 +259,8 @@ object RouteDatasetV1 {
         leg(
             "leg-06b-port-said-suez", "port-said", "suez", WATERWAY, 8, V_VIII,
             waypoints = listOf("ismailia"),
-            assumption = "Суэцкий канал ниже разрешения карты: отдельное плечо-водный путь",
-            uncertaintyPct = 10,
+            assumption = "Суэцкий канал ниже разрешения карты: отдельное плечо-водный путь; реальная длина ~193 км, полилиния узлов недооценивает на ~22 %",
+            uncertaintyPct = 25,
         ),
         leg(
             "leg-07-suez-aden", "suez", "aden", SHIP, 9, IX,
@@ -356,8 +356,8 @@ object RouteDatasetV1 {
         leg(
             "leg-18-ogden-fort-kearney", "ogden", "fort-kearney", TRAIN, 27, XXVI_XXXI,
             waypoints = listOf("evanston", "medicine-bow", "laramie", "cheyenne"),
-            assumption = "Union Pacific: мост Медисин-Бо, Шайенн, вдоль Платта",
-            uncertaintyPct = 6,
+            assumption = "Union Pacific: мост Медисин-Бо, Шайенн, вдоль Платта; полилиния станций недооценивает реальную линию (~1300 км) на ~15 %",
+            uncertaintyPct = 15,
         ),
         leg(
             "leg-19-fort-kearney-omaha", "fort-kearney", "omaha", SLEDGE, 31, XXVI_XXXI,

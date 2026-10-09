@@ -67,7 +67,10 @@ enum class DraftRow(val label: String, val titleRu: String) {
 
 /**
  * A node of the route geometry. [chapter] is the novel chapter (arabic) where
- * the node is first reached. Waypoints carry the chapter of their leg.
+ * the node is passed: for leg endpoints the chapter of arrival, for waypoints
+ * the chapter of passage — it may differ from the leg's own [RouteLeg.chapter]
+ * (e.g. the mid-Pacific waypoints of leg-16, which starts in ch. XXIV, carry
+ * ch. 25).
  */
 data class RouteNode(
     val id: String,

@@ -93,6 +93,7 @@ class GlobeSliceActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         resolvedState?.value = resolveScenario(intent)
     }
 

@@ -14,8 +14,10 @@
 
 ## Модель
 
-- `GlobeStopCard(occurrenceId: String, nodeId: String, nameRu: String, chapter: Int, transport: Transport, thresholdBookKm: Double)`
+- `GlobeStopCard(occurrenceId: String, nodeId: String, nameRu: String, arrivalChapter: Int, arrivalTransport: Transport?, thresholdBookKm: Double)`
 - Occurrence ID: `<nodeId>#<n>` (london#1, london#2; у прочих #1) — по утверждённой матрице.
+- **`arrivalTransport: Transport?` — nullable**: у стартового вхождения `london#1` прибывающего плеча нет, значение `null` (не выдумывать транспорт старта). У всех остальных вхождений — `modeToNext` завершающего плеча.
+- **`arrivalChapter: Int` — глава прибывающего плеча**, а не глава узла: для `london#2` — глава `leg-24-liverpool-london` (34), а не chapter узла `london` (3). Правило для стартового вхождения: `london#1` получает главу первого плеча маршрута (`leg-01`, chapter 3) — зафиксировано как сознательное соглашение «старт принадлежит главе выезда»; для любых будущих повторных вхождений правило то же: глава = глава прибывающего плеча, у первого вхождения — первого исходящего.
 - `reached(card, totalBookMeters)` — чистая функция: `totalBookMeters ≥ card.thresholdBookKm × 1000`. Ровно порог → достигнуто. При 0 — все кроме `london#1` впереди; при ≥ D — все достигнуто.
 - Список строится детерминированно из `RouteDatasetV1` + `RouteMeasure`; литералов узлов и порогов нет.
 
@@ -28,7 +30,7 @@
 ## Критерии готовности (DoD)
 
 - Ровно **25 карточек**; каждая — STOP/PORT и конец хотя бы одного плеча (проверка тестом через `legs`).
-- `london#1` (порог 0) и `london#2` (порог = `totalKm()`) — разные occurrence ID, пороги и главы прибытия.
+- `london#1` (порог 0, `arrivalTransport = null`, `arrivalChapter = 3` — глава первого плеча `leg-01`) и `london#2` (порог = `totalKm()`, `arrivalTransport = TRAIN`, `arrivalChapter = 34` — глава прибывающего `leg-24`) — разные occurrence ID, пороги, транспорт и главы прибытия.
 - `chicago` и `nagasaki` отсутствуют в списке (явный тест: STOP в `waypointIds` ≠ конец плеча).
 - Пороги вычисляются из `RouteMeasure` и строго монотонны по порядку вхождений; финиш = `totalKm()`; тест порогов против `cumulativeKm()` (не литералы).
 - `reached`: 0 → только `london#1`; ровно порог → достигнуто; ≥ D → все 25; откат totalBookMeters вниз меняет reached (derived, без памяти).
@@ -36,7 +38,7 @@
 
 ## Зависимости и блокеры
 
-Зависимостей нет (только утверждённая геометрия main). Не блокирует и не дублирует: PR #17 (визуальные якоря «Пути»), PR #18 (паспорт), PR #19 (позиция точки на полилинии). Отложено на следующие срезы: интерполяция `chicago`/`nagasaki`, исключения `shanghai-mouth`/`hooghly-mouth`, ссылки на legacy-текст, сюжетные тексты, глава `london#2` (в срезе глава берётся из узла; правило повторных вхождений — открытый вопрос матрицы).
+Зависимостей нет (только утверждённая геометрия main). Не блокирует и не дублирует: PR #17 (визуальные якоря «Пути»), PR #18 (паспорт), PR #19 (позиция точки на полилинии). Отложено на следующие срезы: интерполяция `chicago`/`nagasaki`, исключения `shanghai-mouth`/`hooghly-mouth`, ссылки на legacy-текст, сюжетные тексты. Глава в карточке — прибывающего плеча по правилу выше (вопрос главы `london#2` матрицы закрыт: 34).
 
 ## Организация
 

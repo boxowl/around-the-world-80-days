@@ -13,10 +13,11 @@ P08 «художественное качество двух эталонных 
 - `dist/p08-brindisi-sea.mp4` (~28 с) — фрагмент моря: трап на сваях над водой, герой стоит на палубе, борт судна с иллюминаторами, гребни и блики.
 - `dist/p08-backward.mp4` — коррекция назад ≤ 2 с, мир статичен в покое.
 
-**Скриншоты (все в `docs/screenshots/`):**
-- Эталонные пары до/после (та же позиция/фаза, демо детерминировано): `p07-london-demo.png` ↔ `p08-london-demo.png`; `p07-dover-crossing-demo.png` ↔ `p08-dover-crossing-demo.png`; `p07-boarding-demo.png` ↔ `p08-boarding-demo.png`; `p07-night-sea-demo.png` ↔ `p08-night-sea-demo.png`.
-- Прод-кадр успешного состояния (синтетический сид 4 000, помечен): `p08-prod-success.png`.
-- Обзорные: `p08-home-night.png`… `p08-home-day.png`, `p08-alps-turin-day/night.png`, `p08-suez-day/night.png`, `p08-home-compact.png`, `p08-home-font15.png`, `p08-map.png`, `p08-settings.png` — точный список в `docs/design/p08-hq-visual.md` (раздел «Скриншоты»).
+**Скриншоты (фактически существующие файлы):**
+- Эталонные пары до/после (та же позиция/фаза, демо детерминировано): в main — `docs/screenshots/p07-london-demo.png`, `p07-dover-crossing-demo.png`, `p07-boarding-demo.png`, `p07-night-sea-demo.png`; в ветке PR #12 — `docs/screenshots/p08-london-demo.png`, `p08-dover-crossing-demo.png`, `p08-boarding-demo.png`, `p08-night-sea-demo.png`.
+- Прод-кадр успешного состояния (синтетический сид 4 000, помечен): ветка PR #12 — `docs/screenshots/p08-prod-success.png`.
+- Дополнительно в main от P07 (для сравнения облика до P08): `p07-prod-360x640.png`, `p07-prod-dover-4000.png`, `p07-prod-font15.png`, `p07-prod-med-42000.png`, `p07-prod-reduced-motion.png`, `p07-prod-suez-49000.png`.
+- Примечание: таблица в `docs/design/p08-hq-visual.md` (раздел «Скриншоты») перечисляет больше кадров (home-night/day, alps-turin, suez-day/night, compact, font15, map, settings и др.) — они были сняты в работе, но в Git не сохранены; при приёмке их можно переснять с установленного PR #12 APK на эмуляторе по тому же протоколу (сиды 0/4 500/25 000/49 000, день/ночь).
 
 ## Проверенные факты (не вкус)
 

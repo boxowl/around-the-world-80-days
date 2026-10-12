@@ -33,11 +33,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
-import kotlin.math.min
 
 private val Paper = Color(0xFFFAF5EE)
 private val OceanLight = Color(0xFFF1F6FB)
@@ -167,7 +165,6 @@ private fun SliceCanvas(
             color = android.graphics.Color.argb(255, 58, 58, 74)
         }
     }
-    val density = LocalDensity.current
     Canvas(modifier) {
         val r = layout.radius
         val c = layout.center

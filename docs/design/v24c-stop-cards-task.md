@@ -4,7 +4,7 @@
 
 ## Объём первого среза
 
-**Ровно 25 карточек**: все STOP/PORT, являющиеся концами плеч `RouteDatasetV1`, плюс два вхождения `london` с уникальными occurrence ID. Исключены до отдельного решения: `nagasaki` (CALL, mid-leg), `chicago` (STOP, но используется в `waypointIds` leg-20 — НЕ конец плеча), `shanghai-mouth`, `hooghly-mouth` и все WAYPOINT.
+**Ровно 25 карточек** = 24 уникальных endpoint-nodeId с ролью STOP/PORT, из которых `london` учитывается дважды (два вхождения), а не один раз: 23 прочих узла + `london#1` + `london#2`. Проверено по `RouteDatasetV1`: всего 14 STOP + 11 PORT = 25 узлов; из них `chicago` (STOP, но mid-leg waypoint leg-20) не является концом плеча → 24 уникальных endpoint-nodeId; `london` — конец двух плеч (старт leg-01 и финиш leg-24) → 25 карточек. Исключены до отдельного решения: `nagasaki` (CALL, mid-leg), `chicago` (STOP, но используется в `waypointIds` leg-20 — НЕ конец плеча), `shanghai-mouth`, `hooghly-mouth` и все WAYPOINT.
 
 **Различие ролей (явно, чтобы DoD не противоречил себе):** отбор идёт по «является ли узел концом хотя бы одного плеча», а не только по `role`. `chicago` имеет `role = STOP`, но в маршруте фигурирует как waypoint внутри `leg-20-omaha-new-york` — концом плеча не является, поэтому в срез не входит. `nagasaki` имеет `role = CALL` и тоже mid-leg. Правило отбора: `role ∈ {STOP, PORT} AND узел = fromId или toId хотя бы одного RouteLeg`.
 
@@ -16,7 +16,7 @@
 
 - `GlobeStopCard(occurrenceId: String, nodeId: String, nameRu: String, arrivalChapter: Int, arrivalTransport: Transport?, thresholdBookKm: Double)`
 - Occurrence ID: `<nodeId>#<n>` (london#1, london#2; у прочих #1) — по утверждённой матрице.
-- **`arrivalTransport: Transport?` — nullable**: у стартового вхождения `london#1` прибывающего плеча нет, значение `null` (не выдумывать транспорт старта). У всех остальных вхождений — `modeToNext` завершающего плеча.
+- **`arrivalTransport: Transport?` — nullable**: у стартового вхождения `london#1` прибывающего плеча нет, значение `null` (не выдумывать транспорт старта). У всех остальных вхождений — `leg.transport` прибывающего (завершающего на этом узле) плеча.
 - **`arrivalChapter: Int` — глава прибывающего плеча**, а не глава узла: для `london#2` — глава `leg-24-liverpool-london` (34), а не chapter узла `london` (3). Правило для стартового вхождения: `london#1` получает главу первого плеча маршрута (`leg-01`, chapter 3) — зафиксировано как сознательное соглашение «старт принадлежит главе выезда»; для любых будущих повторных вхождений правило то же: глава = глава прибывающего плеча, у первого вхождения — первого исходящего.
 - `reached(card, totalBookMeters)` — чистая функция: `totalBookMeters ≥ card.thresholdBookKm × 1000`. Ровно порог → достигнуто. При 0 — все кроме `london#1` впереди; при ≥ D — все достигнуто.
 - Список строится детерминированно из `RouteDatasetV1` + `RouteMeasure`; литералов узлов и порогов нет.

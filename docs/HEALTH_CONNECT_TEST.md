@@ -52,12 +52,13 @@ Health Connect может получать шаги от приложений, �
 | Модель физического телефона | |
 | Версия Android / номер сборки | |
 | Версия Health Connect / системного обновления Google Play | |
-| APK: версия, commit SHA или ссылка на CI-артефакт | |
+| APK: версия, commit SHA или ссылка на CI-артефакт | `dist/around-the-world-0.9.0.apk`: applicationId `com.boxowl.aroundtheworld`, versionCode 9, versionName 0.9.0, minSdk 28, targetSdk 36 (проверено aapt 2026-10-12). Commit SHA бинарника верифицированно не связан (собран из main при P07, PR #11) |
 | Часовой пояс, автоматические дата/время | |
 | Источник шагов: приложение и версия / встроенный источник | |
 | Часы и версия приложения синхронизации, если есть | |
 | Приоритет источников в Health Connect | |
 | Настройки энергосбережения источника | |
+| Разрешения приложения | Только `android.permission.health.READ_STEPS` (проверено aapt); подпись Android Debug — установка через `adb install` без Play |
 
 ## Журнал испытаний
 

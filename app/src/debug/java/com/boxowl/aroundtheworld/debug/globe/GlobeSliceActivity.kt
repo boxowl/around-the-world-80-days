@@ -1,5 +1,6 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,16 +81,27 @@ internal fun transportColor(t: RouteData.Transport): Color = when (t) {
  * or free aggregates --el meters_prev <long> --el meters_today <long>.
  */
 class GlobeSliceActivity : ComponentActivity() {
+    private var resolvedState: MutableState<SliceScenario.Resolved>? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val resolved = SliceScenario.resolve(
-            scenario = intent.getStringExtra("scenario"),
-            metersPrev = intent.getLongExtra("meters_prev", 0L),
-            metersToday = intent.getLongExtra("meters_today", 0L),
-        )
+        val resolved = mutableStateOf(resolveScenario(intent))
+        resolvedState = resolved
         val rings = assets.open("ne_land.bin").use { CoastlineData.decode(it) }
-        setContent { GlobeSliceScreen(rings, resolved) }
+        setContent { GlobeSliceScreen(rings, resolved.value) }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        resolvedState?.value = resolveScenario(intent)
+    }
+
+    private fun resolveScenario(source: Intent): SliceScenario.Resolved =
+        SliceScenario.resolve(
+            scenario = source.getStringExtra("scenario"),
+            metersPrev = source.getLongExtra("meters_prev", 0L),
+            metersToday = source.getLongExtra("meters_today", 0L),
+        )
 }
 
 @Composable

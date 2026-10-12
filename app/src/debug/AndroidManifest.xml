@@ -22,6 +22,7 @@
             android:name=".debug.globe.GlobeSliceActivity"
             android:exported="true"
             android:label="Globe slice V2.0d"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Expedition" />
     </application>
 </manifest>

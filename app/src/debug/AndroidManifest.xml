@@ -14,5 +14,14 @@
             android:exported="true"
             android:label="Globe proto"
             android:theme="@style/Theme.Expedition" />
+        <!-- Debug-only V2.0d slice: synthetic meters -> CreditLedger -> RouteDatasetV1
+             position on the globe. Start explicitly with
+             adb shell am start -n com.boxowl.aroundtheworld/.debug.globe.GlobeSliceActivity
+             (extras: scenario, meters_prev, meters_today — see GlobeSliceActivity kdoc) -->
+        <activity
+            android:name=".debug.globe.GlobeSliceActivity"
+            android:exported="true"
+            android:label="Globe slice V2.0d"
+            android:theme="@style/Theme.Expedition" />
     </application>
 </manifest>

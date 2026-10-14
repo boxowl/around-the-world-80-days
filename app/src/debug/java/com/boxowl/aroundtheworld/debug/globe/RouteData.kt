@@ -11,7 +11,12 @@ package com.boxowl.aroundtheworld.debug.globe
  */
 object RouteData {
 
-    enum class Transport { TRAIN, SHIP }
+    /**
+     * Leg transport for scene coloring. TEST DATA itself uses only TRAIN/SHIP;
+     * FERRY/ELEPHANT/SLEDGE/WATERWAY exist so the V2.0d slice (GlobeSliceActivity)
+     * can mirror every expedition.route.Transport by name for per-transport colors.
+     */
+    enum class Transport { TRAIN, SHIP, FERRY, ELEPHANT, SLEDGE, WATERWAY }
 
     data class Stop(val name: String, val lat: Double, val lon: Double)
 

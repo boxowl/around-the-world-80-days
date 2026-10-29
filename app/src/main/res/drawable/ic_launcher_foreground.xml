@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The artwork stays inside the adaptive icon's central safe area. -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="2.8"
+        android:pathData="M54,27 A27,27 0,1 1,54 81 A27,27 0,1 1,54 27" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#D9A441"
+        android:strokeWidth="2"
+        android:pathData="M54,27 C44,39 44,69 54,81 M54,27 C64,39 64,69 54,81 M28,54 H80 M34,39 H74 M34,69 H74" />
+    <path
+        android:fillColor="#F2EAD8"
+        android:pathData="M64,40 A3,3 0,1 1,58 40 A3,3 0,1 1,64 40" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#F2EAD8"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M61,40 C59,47 55,51 47,55 C42,58 41,64 46,68" />
+    <path
+        android:fillColor="#F2EAD8"
+        android:pathData="M46,64 L50,72 L42,69 Z" />
+</vector>

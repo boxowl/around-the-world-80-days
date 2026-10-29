@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import java.time.LocalTime
 import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sin
 
@@ -227,37 +228,52 @@ internal fun DrawScope.celestial(p: ScenePalette, pos: Offset, moon: Boolean) {
 
 /**
  * Solid silhouette of a XIX-century traveller facing right: hat brim, long
- * flared coat, walking stride, shoulder bag and a staff in the forward hand.
+ * flared coat, shoulder bag and a staff in the forward hand. [walkPhase] is the
+ * stride cycle position (0..1, advancing with walked world distance, backwards
+ * on corrections) and [gait] the smoothed stride amplitude: at 0 the traveller
+ * stands at ease with the staff planted; at 1 legs swing fully, the torso bobs
+ * and the staff swings in anti-phase (P08).
  */
-internal fun DrawScope.hero(x: Float, groundY: Float, p: ScenePalette) {
+internal fun DrawScope.hero(x: Float, groundY: Float, p: ScenePalette, walkPhase: Float = 0f, gait: Float = 0f) {
     val s = size.height * 0.11f
     val c = lerp(p.near, Color.Black, 0.4f)
-    // Staff planted ahead of the body.
-    drawLine(c, Offset(x + s * 0.34f, groundY - s * 0.64f), Offset(x + s * 0.42f, groundY),
+    val g = gait.coerceIn(0f, 1f)
+    val angle = (2 * PI * walkPhase).toFloat()
+    val swing = sin(angle) * g
+    val bob = -s * 0.022f * kotlin.math.abs(sin(angle)) * g
+    val body = groundY + bob
+    // Legs under the coat hem: feet scissor with the phase, lifting off the ground
+    // on the forward swing; at rest they stand slightly apart.
+    val hipY = body - s * 0.33f
+    val footAY = groundY - s * 0.055f * maxOf(0f, cos(angle).toFloat()) * g
+    val footBY = groundY - s * 0.055f * maxOf(0f, (-cos(angle)).toFloat()) * g
+    drawLine(c, Offset(x + s * 0.03f, hipY), Offset(x + s * (0.05f + 0.17f * swing), footAY),
+        strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+    drawLine(c, Offset(x - s * 0.03f, hipY), Offset(x - s * (0.05f + 0.17f * swing), footBY),
+        strokeWidth = s * 0.09f, cap = StrokeCap.Round)
+    // Staff in the forward hand, swinging in anti-phase and planted ahead.
+    val staffTip = x + s * (0.42f - 0.16f * swing)
+    val staffTop = Offset(x + s * (0.30f - 0.08f * swing), body - s * 0.62f)
+    drawLine(c, staffTop, Offset(staffTip, groundY - s * 0.01f * g * maxOf(0f, -cos(angle).toFloat())),
         strokeWidth = s * 0.05f, cap = StrokeCap.Round)
-    // Legs in stride, under the coat hem.
-    drawLine(c, Offset(x + s * 0.04f, groundY - s * 0.32f), Offset(x + s * 0.22f, groundY),
-        strokeWidth = s * 0.09f, cap = StrokeCap.Round)
-    drawLine(c, Offset(x - s * 0.05f, groundY - s * 0.32f), Offset(x - s * 0.16f, groundY - s * 0.01f),
-        strokeWidth = s * 0.09f, cap = StrokeCap.Round)
     // Flared coat from shoulders to hem.
     val coat = Path().apply {
-        moveTo(x - s * 0.10f, groundY - s * 0.80f)
-        quadraticTo(x + s * 0.01f, groundY - s * 0.87f, x + s * 0.08f, groundY - s * 0.78f)
-        lineTo(x + s * 0.15f, groundY - s * 0.32f)
-        lineTo(x + s * 0.02f, groundY - s * 0.27f)
-        lineTo(x - s * 0.17f, groundY - s * 0.31f)
+        moveTo(x - s * 0.10f, body - s * 0.80f)
+        quadraticTo(x + s * 0.01f, body - s * 0.87f, x + s * 0.08f, body - s * 0.78f)
+        lineTo(x + s * 0.15f, body - s * 0.32f)
+        lineTo(x + s * 0.02f, body - s * 0.27f)
+        lineTo(x - s * 0.17f, body - s * 0.31f)
         close()
     }
     drawPath(coat, c)
     // Arm reaching to the staff.
-    drawLine(c, Offset(x + s * 0.05f, groundY - s * 0.68f), Offset(x + s * 0.32f, groundY - s * 0.58f),
+    drawLine(c, Offset(x + s * 0.05f, body - s * 0.68f), Offset(x + s * 0.28f, body - s * 0.57f),
         strokeWidth = s * 0.07f, cap = StrokeCap.Round)
     // Shoulder bag hanging behind the back.
-    drawOval(c, topLeft = Offset(x - s * 0.24f, groundY - s * 0.70f), size = Size(s * 0.15f, s * 0.22f))
+    drawOval(c, topLeft = Offset(x - s * 0.24f, body - s * 0.70f), size = Size(s * 0.15f, s * 0.22f))
     // Head with a hat brim.
-    drawCircle(c, radius = s * 0.085f, center = Offset(x + s * 0.03f, groundY - s * 0.92f))
-    drawLine(c, Offset(x - s * 0.06f, groundY - s * 0.97f), Offset(x + s * 0.14f, groundY - s * 0.955f),
+    drawCircle(c, radius = s * 0.085f, center = Offset(x + s * 0.03f, body - s * 0.92f))
+    drawLine(c, Offset(x - s * 0.06f, body - s * 0.97f), Offset(x + s * 0.14f, body - s * 0.955f),
         strokeWidth = s * 0.045f, cap = StrokeCap.Round)
 }
 
@@ -290,54 +306,6 @@ internal fun DrawScope.lamppost(x: Float, gy: Float, hgt: Float, color: Color, p
     glow(x, gy - hgt, size.height * 0.012f, p, a)
 }
 
-internal fun DrawScope.tree(x: Float, gy: Float, hgt: Float, color: Color) {
-    drawRect(color, topLeft = Offset(x - hgt * 0.03f, gy - hgt * 0.45f), size = Size(hgt * 0.06f, hgt * 0.45f))
-    drawCircle(color, hgt * 0.28f, Offset(x, gy - hgt * 0.6f))
-    drawCircle(color, hgt * 0.2f, Offset(x - hgt * 0.18f, gy - hgt * 0.48f))
-    drawCircle(color, hgt * 0.18f, Offset(x + hgt * 0.18f, gy - hgt * 0.5f))
-}
-
-internal fun DrawScope.fir(x: Float, gy: Float, hgt: Float, color: Color) {
-    val wd = hgt * 0.42f
-    val path = Path().apply {
-        moveTo(x, gy - hgt)
-        lineTo(x - wd * 0.32f, gy - hgt * 0.55f)
-        lineTo(x - wd * 0.2f, gy - hgt * 0.55f)
-        lineTo(x - wd * 0.5f, gy - hgt * 0.18f)
-        lineTo(x + wd * 0.5f, gy - hgt * 0.18f)
-        lineTo(x + wd * 0.2f, gy - hgt * 0.55f)
-        lineTo(x + wd * 0.32f, gy - hgt * 0.55f)
-        close()
-    }
-    drawPath(path, color)
-    drawRect(color, topLeft = Offset(x - hgt * 0.03f, gy - hgt * 0.18f), size = Size(hgt * 0.06f, hgt * 0.18f))
-}
-
-internal fun DrawScope.cypress(x: Float, gy: Float, hgt: Float, color: Color) {
-    val path = Path().apply {
-        moveTo(x, gy - hgt)
-        quadraticTo(x - hgt * 0.16f, gy - hgt * 0.5f, x - hgt * 0.1f, gy)
-        lineTo(x + hgt * 0.1f, gy)
-        quadraticTo(x + hgt * 0.16f, gy - hgt * 0.5f, x, gy - hgt)
-        close()
-    }
-    drawPath(path, color)
-}
-
-internal fun DrawScope.palm(x: Float, gy: Float, hgt: Float, color: Color) {
-    val top = Offset(x + hgt * 0.12f, gy - hgt)
-    val trunk = Path().apply {
-        moveTo(x, gy)
-        quadraticTo(x - hgt * 0.05f, gy - hgt * 0.55f, top.x, top.y)
-    }
-    drawPath(trunk, color, style = Stroke(width = size.height * 0.012f, cap = StrokeCap.Round))
-    for (i in 0 until 5) {
-        drawArc(color, startAngle = -170f + i * 34f, sweepAngle = 46f, useCenter = false,
-            topLeft = Offset(top.x - hgt * 0.3f, top.y - hgt * 0.1f), size = Size(hgt * 0.6f, hgt * 0.5f),
-            style = Stroke(width = size.height * 0.009f, cap = StrokeCap.Round))
-    }
-}
-
 /** Steam locomotive facing right: boiler, cab, chimney, dome, small wheels. */
 internal fun DrawScope.train(x: Float, gy: Float, scale: Float, color: Color, p: ScenePalette, a: Float) {
     val h = size.height * scale
@@ -367,28 +335,6 @@ internal fun DrawScope.mast(x: Float, gy: Float, hgt: Float, color: Color) {
         strokeWidth = sw * 0.8f)
     drawLine(color, Offset(x, gy - hgt), Offset(x - hgt * 0.25f, gy), strokeWidth = sw * 0.5f)
     drawLine(color, Offset(x, gy - hgt), Offset(x + hgt * 0.25f, gy), strokeWidth = sw * 0.5f)
-}
-
-internal fun DrawScope.steamer(x0: Float, x1: Float, gy: Float, color: Color, p: ScenePalette, a: Float) {
-    val w = size.width
-    val h = size.height
-    val hullH = h * 0.07f
-    val hull = Path().apply {
-        moveTo(x0, gy - hullH)
-        lineTo(x1, gy - hullH)
-        lineTo(x1 - (x1 - x0) * 0.06f, gy)
-        lineTo(x0 + (x1 - x0) * 0.1f, gy)
-        quadraticTo(x0 + (x1 - x0) * 0.02f, gy - hullH * 0.3f, x0, gy - hullH)
-        close()
-    }
-    drawPath(hull, color)
-    drawRect(color, topLeft = Offset(x0 + (x1 - x0) * 0.25f, gy - hullH - h * 0.05f),
-        size = Size((x1 - x0) * 0.5f, h * 0.05f))
-    val funnelX = x0 + (x1 - x0) * 0.42f
-    drawRect(color, topLeft = Offset(funnelX, gy - hullH - h * 0.11f), size = Size(w * 0.03f, h * 0.07f))
-    smoke(funnelX + w * 0.015f, gy - hullH - h * 0.13f, lerp(p.skyBottom, Color.White, 0.3f), a)
-    mast(x0 + (x1 - x0) * 0.14f, gy - hullH, h * 0.13f, color)
-    mast(x0 + (x1 - x0) * 0.86f, gy - hullH, h * 0.13f, color)
 }
 
 internal fun DrawScope.lighthouse(x: Float, gy: Float, hgt: Float, color: Color, p: ScenePalette, a: Float) {

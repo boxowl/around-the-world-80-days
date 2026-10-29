@@ -84,6 +84,8 @@ fun DiagnosticsPanel(model: DiagnosticsViewModel = viewModel()) {
                 val snapshot = current.snapshot
                 Text("Сегодня: ${snapshot.today.count?.let { "$it шагов" } ?: "нет данных"}",
                     style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                val yesterdayDate = snapshot.todayWindow.end.atZone(snapshot.zone).toLocalDate().minusDays(1)
+                Text("Вчера (${yesterdayDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))}): ${snapshot.yesterday.count?.let { "$it шагов" } ?: "нет данных"}")
                 Text("За 7 календарных дней, включая сегодня: ${snapshot.week.count?.let { "$it шагов" } ?: "нет данных"}")
                 if (snapshot.today.count == null) Text("Источник пока не передал записи за сегодня. Проверьте сбор шагов и синхронизацию в Health Connect.")
                 val format = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(snapshot.zone)

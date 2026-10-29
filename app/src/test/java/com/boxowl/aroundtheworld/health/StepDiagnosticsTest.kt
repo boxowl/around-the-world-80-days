@@ -37,9 +37,38 @@ class StepDiagnosticsTest {
         val fake = Fake()
         val reader = StepDiagnostics(fake)
         fake.value = null
-        assertNull((reader.read(now, zone) as DiagnosticState.Ready).snapshot.today.count)
+        val noData = (reader.read(now, zone) as DiagnosticState.Ready).snapshot
+        assertNull(noData.today.count)
+        assertNull(noData.yesterday.count)
         fake.value = 0
-        assertEquals(0L, (reader.read(now, zone) as DiagnosticState.Ready).snapshot.today.count)
+        val zero = (reader.read(now, zone) as DiagnosticState.Ready).snapshot
+        assertEquals(0L, zero.today.count)
+        assertEquals(0L, zero.yesterday.count)
+    }
+    @Test fun lateYesterdayCorrectionReplacesOnlyYesterdayAndWeek() = runBlocking {
+        var yesterdayCount = 200L
+        val gateway = object : StepsGateway {
+            override fun availability() = Availability.AVAILABLE
+            override suspend fun hasPermission() = true
+            override suspend fun aggregate(window: ReadWindow): StepTotal = StepTotal(
+                when (window.start) {
+                    Instant.parse("2026-09-12T21:00:00Z") -> 1_000L // today
+                    Instant.parse("2026-09-11T21:00:00Z") -> yesterdayCount
+                    Instant.parse("2026-09-06T21:00:00Z") -> 1_000L + yesterdayCount
+                    else -> error("unexpected window: $window")
+                },
+            )
+        }
+        val reader = StepDiagnostics(gateway)
+        val before = (reader.read(now, zone) as DiagnosticState.Ready).snapshot
+        assertEquals(1_000L, before.today.count)
+        assertEquals(200L, before.yesterday.count)
+        assertEquals(1_200L, before.week.count)
+        yesterdayCount = 250L
+        val after = (reader.read(now, zone) as DiagnosticState.Ready).snapshot
+        assertEquals(1_000L, after.today.count)
+        assertEquals(250L, after.yesterday.count)
+        assertEquals(1_250L, after.week.count)
     }
     @Test fun unavailableOrDeniedNeverRead() = runBlocking {
         val fake = Fake()
@@ -73,16 +102,28 @@ class StepDiagnosticsTest {
         val time = Instant.parse("2026-03-29T12:00:00Z")
         val result = StepDiagnostics(fake).read(time, ZoneId.of("Europe/London")) as DiagnosticState.Ready
         assertEquals(Instant.parse("2026-03-29T00:00:00Z"), result.snapshot.todayWindow.start)
+        assertEquals(Instant.parse("2026-03-28T00:00:00Z"), result.snapshot.yesterdayWindow.start)
+        assertEquals(Instant.parse("2026-03-29T00:00:00Z"), result.snapshot.yesterdayWindow.end)
         assertEquals(Instant.parse("2026-03-23T00:00:00Z"), result.snapshot.weekWindow.start)
         assertEquals(time, result.snapshot.weekWindow.end)
+    }
+    @Test fun yesterdayUsesCalendarDayAcrossDaylightSaving() = runBlocking {
+        val fake = Fake()
+        val time = Instant.parse("2026-03-30T12:00:00Z")
+        val snapshot = (StepDiagnostics(fake).read(time, ZoneId.of("Europe/London")) as DiagnosticState.Ready).snapshot
+        assertEquals(Instant.parse("2026-03-29T00:00:00Z"), snapshot.yesterdayWindow.start)
+        assertEquals(Instant.parse("2026-03-29T23:00:00Z"), snapshot.yesterdayWindow.end)
+        assertEquals(23 * 60 * 60L, snapshot.yesterdayWindow.end.epochSecond - snapshot.yesterdayWindow.start.epochSecond)
     }
     @Test fun midnightDoesNotQueryEmptyInterval() = runBlocking {
         val fake = Fake()
         val time = Instant.parse("2026-09-12T21:00:00Z")
         val result = StepDiagnostics(fake).read(time, zone) as DiagnosticState.Ready
         assertNull(result.snapshot.today.count)
-        assertEquals(1, fake.windows.size)
-        assertEquals(Instant.parse("2026-09-06T21:00:00Z"), fake.windows.single().start)
+        assertEquals(2, fake.windows.size)
+        assertEquals(Instant.parse("2026-09-11T21:00:00Z"), fake.windows[0].start)
+        assertEquals(Instant.parse("2026-09-12T21:00:00Z"), fake.windows[0].end)
+        assertEquals(Instant.parse("2026-09-06T21:00:00Z"), fake.windows[1].start)
     }
     @Test fun revokedPermissionAfterReadingDiscardsSnapshot() = runBlocking {
         val gateway = object : StepsGateway {
@@ -100,6 +141,18 @@ class StepDiagnosticsTest {
             override suspend fun hasPermission() = true
             override suspend fun aggregate(window: ReadWindow): StepTotal {
                 if (++reads == 2) throw IllegalStateException("Provider unavailable")
+                return StepTotal(100)
+            }
+        }
+        assertEquals(DiagnosticState.ReadError, StepDiagnostics(gateway).read(now, zone))
+    }
+    @Test fun weekReadFailureDiscardsTodayAndYesterday() = runBlocking {
+        val gateway = object : StepsGateway {
+            var reads = 0
+            override fun availability() = Availability.AVAILABLE
+            override suspend fun hasPermission() = true
+            override suspend fun aggregate(window: ReadWindow): StepTotal {
+                if (++reads == 3) throw IllegalStateException("Provider unavailable")
                 return StepTotal(100)
             }
         }

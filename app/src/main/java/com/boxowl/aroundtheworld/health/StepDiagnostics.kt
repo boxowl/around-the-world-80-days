@@ -9,8 +9,10 @@ data class StepTotal(val count: Long?, val origins: Set<String> = emptySet())
 data class ReadWindow(val start: Instant, val end: Instant)
 data class DiagnosticSnapshot(
     val today: StepTotal,
+    val yesterday: StepTotal,
     val week: StepTotal,
     val todayWindow: ReadWindow,
+    val yesterdayWindow: ReadWindow,
     val weekWindow: ReadWindow,
     val zone: ZoneId,
 )
@@ -40,12 +42,25 @@ class StepDiagnostics(private val gateway: StepsGateway) {
                 } else {
                     val date = now.atZone(zone).toLocalDate()
                     val today = ReadWindow(date.atStartOfDay(zone).toInstant(), now)
+                    val yesterday = ReadWindow(
+                        date.minusDays(1).atStartOfDay(zone).toInstant(),
+                        date.atStartOfDay(zone).toInstant(),
+                    )
                     val week = ReadWindow(date.minusDays(6).atStartOfDay(zone).toInstant(), now)
                     val todayTotal = if (today.start == today.end) StepTotal(null) else gateway.aggregate(today)
+                    val yesterdayTotal = if (yesterday.start == yesterday.end) StepTotal(null) else gateway.aggregate(yesterday)
                     val weekTotal = gateway.aggregate(week)
                     // Permission may have been revoked while reading.
                     if (!gateway.hasPermission()) DiagnosticState.PermissionRequired
-                    else DiagnosticState.Ready(DiagnosticSnapshot(todayTotal, weekTotal, today, week, zone))
+                    else DiagnosticState.Ready(DiagnosticSnapshot(
+                        today = todayTotal,
+                        yesterday = yesterdayTotal,
+                        week = weekTotal,
+                        todayWindow = today,
+                        yesterdayWindow = yesterday,
+                        weekWindow = week,
+                        zone = zone,
+                    ))
                 }
             }
         }

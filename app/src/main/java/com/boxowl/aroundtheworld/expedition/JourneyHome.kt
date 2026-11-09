@@ -69,7 +69,12 @@ internal fun JourneyHome(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth().height(sceneHeight)) {
-                SeamlessJourneyCanvas(projection, localTime, Modifier.fillMaxSize())
+                SeamlessJourneyCanvas(
+                    projection,
+                    localTime,
+                    Modifier.fillMaxSize(),
+                    browseEnabled = hasKnownProgress && expedition.firstLegSteps > 0L,
+                )
                 // The foreground dissolves into the shell: no visible picture edge.
                 Box(
                     Modifier.fillMaxWidth().height(sceneHeight * 0.32f)

@@ -117,6 +117,17 @@ class JourneyBrowseTest {
         assertFalse(JourneyBrowse.isBrowsing(null, confirmed))
     }
 
+    @Test fun accessibleStopsRespectConfirmedBoundaryAndZero() {
+        assertEquals(4f, JourneyBrowse.previousStop(4.6f, 4.6f, max)!!, 0f)
+        assertEquals(3f, JourneyBrowse.previousStop(4f, 4.6f, max)!!, 0f)
+        assertEquals(4.6f, JourneyBrowse.nextStop(4f, 4.6f, max)!!, 0f)
+        assertEquals(1f, JourneyBrowse.nextStop(0f, 4.6f, max)!!, 0f)
+        assertNull(JourneyBrowse.previousStop(0f, 4.6f, max))
+        assertNull(JourneyBrowse.nextStop(4.6f, 4.6f, max))
+        assertNull(JourneyBrowse.previousStop(0f, 0f, max))
+        assertNull(JourneyBrowse.nextStop(0f, 0f, max))
+    }
+
     @Test fun browsingNeverMovesTheConfirmedPosition() {
         // All browse math is pure: feeding any gesture/correction sequence
         // through it leaves the confirmed value untouched and the render target

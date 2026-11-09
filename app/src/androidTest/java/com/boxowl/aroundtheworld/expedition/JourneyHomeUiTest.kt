@@ -17,6 +17,61 @@ import org.junit.runner.RunWith
 /** Emulator-only end-to-end rendering check with explicitly synthetic saved steps. */
 @RunWith(AndroidJUnit4::class)
 class JourneyHomeUiTest {
+    @Test fun accessibleBrowseReturnsWithoutChangingSavedSteps() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val args = InstrumentationRegistry.getArguments()
+        assumeTrue(args.getString("syntheticSeed") == "allow" &&
+            (Build.PRODUCT.startsWith("sdk_") || Build.FINGERPRINT.contains("generic") || Build.FINGERPRINT.contains("emulator")))
+        val context = instrumentation.targetContext
+        val before = runBlocking {
+            val repo = ExpeditionRepository(ExpeditionDatabase.get(context), ExpeditionStore(context))
+            val start = Instant.now().minusSeconds(3_600)
+            val expedition = repo.load() ?: repo.start(JourneyMode.FREE, start, ZoneId.systemDefault())
+            val now = Instant.now()
+            repo.reconcile(mapOf(now.atZone(expedition.zone).toLocalDate() to 4_500L), now)
+            repo.load()!!.totalSteps
+        }
+        val activity = instrumentation.startActivitySync(
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        try {
+            var scene: AccessibilityNodeInfo? = null
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                scene = findNode(instrumentation.uiAutomation.rootInActiveWindow) { node ->
+                    node.contentDescription?.startsWith("Сцена пути:") == true &&
+                        node.actionList.any { it.label?.toString() == "Предыдущая остановка" }
+                }
+                if (scene != null) break
+                Thread.sleep(100)
+            }
+            assertTrue("Browse action missing from scene", scene != null)
+            val previousAction = scene!!.actionList.first { it.label?.toString() == "Предыдущая остановка" }
+            assertTrue("Browse action failed", scene.performAction(previousAction.id))
+
+            var browsing: AccessibilityNodeInfo? = null
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                browsing = findNode(instrumentation.uiAutomation.rootInActiveWindow) { node ->
+                    node.contentDescription?.startsWith("Просмотр пройденного. Сцена пути:") == true &&
+                        node.actionList.any { it.label?.toString() == "К текущей позиции" }
+                }
+                if (browsing != null) break
+                Thread.sleep(100)
+            }
+            assertTrue("Accessible browse state missing", browsing != null)
+            val returnAction = browsing!!.actionList.first { it.label?.toString() == "К текущей позиции" }
+            assertTrue("Return action failed", browsing.performAction(returnAction.id))
+            instrumentation.waitForIdleSync()
+            val after = runBlocking {
+                ExpeditionRepository(ExpeditionDatabase.get(context), ExpeditionStore(context)).load()!!.totalSteps
+            }
+            assertTrue("Browse changed saved steps: $before -> $after", before == after)
+        } finally {
+            activity.finish()
+        }
+    }
+
     @Test fun rendersStoredStepsAndNextStop() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val args = InstrumentationRegistry.getArguments()
@@ -71,5 +126,17 @@ class JourneyHomeUiTest {
         val own = node.text?.toString().orEmpty()
         val children = (0 until node.childCount).joinToString(" ") { collectText(node.getChild(it)) }
         return "$own $children"
+    }
+
+    private fun findNode(
+        node: AccessibilityNodeInfo?,
+        predicate: (AccessibilityNodeInfo) -> Boolean,
+    ): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (predicate(node)) return node
+        for (index in 0 until node.childCount) {
+            findNode(node.getChild(index), predicate)?.let { return it }
+        }
+        return null
     }
 }

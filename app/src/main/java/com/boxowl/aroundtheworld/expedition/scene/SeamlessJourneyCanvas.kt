@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.boxowl.aroundtheworld.expedition.FirstLegMapProjection
@@ -43,7 +45,9 @@ import com.boxowl.aroundtheworld.expedition.stars
 import com.boxowl.aroundtheworld.expedition.DayPhase
 import java.time.LocalTime
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.exp
+import kotlin.math.floor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -102,6 +106,19 @@ internal object JourneyBrowse {
     /** True while the browsed position is meaningfully behind the confirmed one. */
     fun isBrowsing(browse: Float?, confirmed: Float): Boolean =
         browse != null && browse < confirmed - BROWSE_EPSILON
+
+    /** Accessible navigation follows existing stop anchors and never enters the future. */
+    fun previousStop(current: Float, confirmed: Float, maxPosition: Float): Float? {
+        val clamped = clampBrowse(current, confirmed, maxPosition)
+        val previous = floor(clamped - BROWSE_EPSILON).coerceAtLeast(0f)
+        return previous.takeIf { it < clamped - BROWSE_EPSILON }
+    }
+
+    fun nextStop(current: Float, confirmed: Float, maxPosition: Float): Float? {
+        val clamped = clampBrowse(current, confirmed, maxPosition)
+        val next = ceil(clamped + BROWSE_EPSILON).coerceAtMost(confirmed.coerceIn(0f, maxPosition))
+        return next.takeIf { it > clamped + BROWSE_EPSILON }
+    }
 
     /**
      * Exclusive writer of the camera position (V2.1 review fix). Exactly one
@@ -172,9 +189,10 @@ internal fun SeamlessJourneyCanvas(
     projection: FirstLegMapProjection,
     time: LocalTime,
     modifier: Modifier = Modifier,
+    browseEnabled: Boolean = false,
 ) {
     val target = routePositionOf(projection)
-    SeamlessJourneyCanvas(target, sceneDescriptionAt(target), time, modifier)
+    SeamlessJourneyCanvas(target, sceneDescriptionAt(target), time, modifier, browseEnabled)
 }
 
 /** Core renderer; the debug demo drives this overload directly. */
@@ -200,6 +218,16 @@ internal fun SeamlessJourneyCanvas(
     val scope = rememberCoroutineScope()
     var inertiaJob by remember { mutableStateOf<Job?>(null) }
     var cameraOwner by remember { mutableStateOf(JourneyBrowse.CameraOwner.CHASE) }
+
+    fun moveBrowseTo(target: Float?) {
+        inertiaJob?.cancel()
+        cameraOwner = JourneyBrowse.CameraOwner.CHASE
+        browse.value = target
+    }
+
+    LaunchedEffect(browseEnabled) {
+        if (!browseEnabled) moveBrowseTo(null)
+    }
 
     /**
      * Fling after a browse drag: exponential decay, hard stop at the confirmed
@@ -363,12 +391,42 @@ internal fun SeamlessJourneyCanvas(
         Modifier
     }
 
+    val browseTarget = JourneyBrowse.effectiveTarget(browse.value, latestTarget, maxPosition)
+    val isBrowsing = browseEnabled && JourneyBrowse.isBrowsing(browse.value, latestTarget)
     Box(modifier) {
         Canvas(
             Modifier
                 .fillMaxSize()
                 .then(gestureModifier)
-                .semantics { contentDescription = description },
+                .semantics {
+                    contentDescription = if (isBrowsing) {
+                        "Просмотр пройденного. ${sceneDescriptionAt(browseTarget)}"
+                    } else {
+                        description
+                    }
+                    if (browseEnabled) {
+                        customActions = buildList {
+                            JourneyBrowse.previousStop(browseTarget, latestTarget, maxPosition)?.let { previous ->
+                                add(CustomAccessibilityAction("Предыдущая остановка") {
+                                    moveBrowseTo(previous)
+                                    true
+                                })
+                            }
+                            if (isBrowsing) {
+                                JourneyBrowse.nextStop(browseTarget, latestTarget, maxPosition)?.let { next ->
+                                    add(CustomAccessibilityAction("Следующая пройденная остановка") {
+                                        moveBrowseTo(if (JourneyBrowse.isBrowsing(next, latestTarget)) next else null)
+                                        true
+                                    })
+                                }
+                                add(CustomAccessibilityAction("К текущей позиции") {
+                                    moveBrowseTo(null)
+                                    true
+                                })
+                            }
+                        }
+                    }
+                },
         ) {
             val viewWidth = size.width / size.height
             val heroWorldX = layout.worldXAt(position.floatValue)
@@ -388,7 +446,7 @@ internal fun SeamlessJourneyCanvas(
                 gait.floatValue,
             )
         }
-        if (browseEnabled && JourneyBrowse.isBrowsing(browse.value, latestTarget)) {
+        if (isBrowsing) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -404,10 +462,7 @@ internal fun SeamlessJourneyCanvas(
                         modifier = Modifier.padding(start = 16.dp),
                         style = MaterialTheme.typography.labelMedium,
                     )
-                    TextButton(onClick = {
-                        inertiaJob?.cancel()
-                        browse.value = null // chase animation returns to the confirmed position
-                    }) { Text("К текущей позиции") }
+                    TextButton(onClick = { moveBrowseTo(null) }) { Text("К текущей позиции") }
                 }
             }
         }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import java.util.Locale
 
 private val Paper = Color(0xFFFAF5EE)
@@ -147,6 +149,7 @@ private fun GlobeSliceScreen(rings: List<CoastlineData.Ring>, resolved: SliceSce
                     realTodayKm = realTodayKm,
                     realTotalKm = realTotalKm,
                     bookKm = bookKm,
+                    totalBookMeters = ledger.totalBookMeters,
                     description = resolved.description,
                 )
             }
@@ -251,6 +254,7 @@ private fun DiagnosticsPanel(
     realTodayKm: Double,
     realTotalKm: Double,
     bookKm: Double,
+    totalBookMeters: Long,
     description: String,
 ) {
     val totalKm = RoutePosition.totalKm
@@ -285,6 +289,7 @@ private fun DiagnosticsPanel(
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(description, style = MaterialTheme.typography.bodySmall)
+        StopCardPicker(totalBookMeters)
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             verticalAlignment = Alignment.CenterVertically,
@@ -306,6 +311,40 @@ private fun DiagnosticsPanel(
             Text("впереди", style = MaterialTheme.typography.labelSmall)
         }
     }
+}
+
+@Composable
+private fun StopCardPicker(totalBookMeters: Long) {
+    val cards = GlobeStopCardsV1.cards
+    val selectedId = remember { mutableStateOf(cards.first().occurrenceId) }
+    val selected = cards.first { it.occurrenceId == selectedId.value }
+    Text("Карточки остановок (debug)", style = MaterialTheme.typography.labelMedium)
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        for (card in cards) {
+            FilterChip(
+                selected = card.occurrenceId == selectedId.value,
+                onClick = { selectedId.value = card.occurrenceId },
+                label = { Text("${card.nameRu} · ${card.occurrenceId}") },
+            )
+        }
+    }
+    Text(
+        "${selected.nameRu} · ${selected.occurrenceId} · глава ${selected.arrivalChapter}",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Text(
+        "Прибытие: ${selected.arrivalTransport?.name ?: "нет (старт)"} · " +
+            String.format(Locale.US, "порог %.1f книжных км", selected.thresholdBookKm),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Text(
+        if (GlobeStopCardsV1.reached(selected, totalBookMeters.toDouble())) "Достигнута"
+        else "Впереди",
+        style = MaterialTheme.typography.labelMedium,
+    )
 }
 
 @Composable

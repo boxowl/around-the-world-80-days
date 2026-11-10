@@ -146,4 +146,25 @@ class V2CreditRepositoryTest {
             assertFalse(repository.loadActive()!!.passport.granted.isEmpty())
         } finally { db.close() }
     }
+
+    @Test fun stampWriteFailureRollsBackDailyCreditAndBaseline() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, ExpeditionDatabase::class.java).build()
+        try {
+            val repository = V2CreditRepository(db)
+            val seq = repository.start(null, start, zone, JourneyMode.FREE, 750L).expedition.id
+            db.openHelper.writableDatabase.execSQL(
+                "CREATE TRIGGER fail_suez BEFORE INSERT ON passport_stamps " +
+                    "WHEN NEW.stampId = 'stamp-suez-finish' BEGIN SELECT RAISE(ABORT, 'test failure'); END"
+            )
+            assertThrows(Exception::class.java) {
+                runBlocking { repository.reconcile(seq, mapOf(day to 300_000L), start.plusSeconds(60)) }
+            }
+            assertTrue(db.v2Dao().days(seq).isEmpty())
+            assertEquals(0L, db.v2Dao().meta(seq)!!.baselineBookMeters)
+            assertNull(db.v2Dao().expedition(seq)!!.lastReadAt)
+            assertEquals(setOf(StampId.LONDON_START), repository.loadActive()!!.passport.granted.keys)
+            db.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_suez")
+            assertTrue(StampId.SUEZ_FINISH in repository.reconcile(seq, mapOf(day to 300_000L), start.plusSeconds(60)).passport.granted)
+        } finally { db.close() }
+    }
 }

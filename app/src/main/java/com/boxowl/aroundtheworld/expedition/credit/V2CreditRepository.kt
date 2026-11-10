@@ -53,7 +53,18 @@ class V2CreditRepository(private val database: ExpeditionDatabase) {
         }
 
     suspend fun loadActive(): V2CreditSnapshot? = database.withTransaction {
-        activeRow()?.let { snapshot(it) }
+        val row = activeRow() ?: return@withTransaction null
+        val current = snapshot(row)
+        val total = current.ledger.totalBookMeters
+        val baseline = dao.meta(row.id)?.baselineBookMeters
+        // An older credit snapshot may predate passport storage. Restore reached stamps
+        // with unknown dates, never with a fabricated current time.
+        val historical = PassportV1.reconcile(current.passport, total, null)
+        if (baseline == null || total > baseline || historical != current.passport) {
+            dao.putStamps(historical.granted.map { (id, at) -> PassportStampRow(row.id, id.id, at?.toString()) })
+            dao.putMeta(PassportMetaRow(row.id, maxOf(baseline ?: 0L, total)))
+            snapshot(row)
+        } else current
     }
 
     /** Missing dates are unchanged; explicit zero replaces a day. Failure before this call writes nothing. */

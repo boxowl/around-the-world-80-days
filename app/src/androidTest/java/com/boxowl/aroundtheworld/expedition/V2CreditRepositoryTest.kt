@@ -84,10 +84,11 @@ class V2CreditRepositoryTest {
                 bookMetersPerRealMeter = 20,
             ))
             db.v2Dao().putDays(listOf(DailyCreditRow(seq, day.toString(), 300_000L, 225_000L)))
-            val restored = V2CreditRepository(db).reconcile(seq, emptyMap(), start.plusSeconds(60))
+            val restored = V2CreditRepository(db).loadActive()!!
             assertTrue(StampId.SUEZ_FINISH in restored.passport.granted)
             assertNull(restored.passport.granted[StampId.SUEZ_FINISH])
             assertEquals(restored.ledger.totalBookMeters, db.v2Dao().meta(seq)!!.baselineBookMeters)
+            assertNull(db.v2Dao().expedition(seq)!!.lastReadAt)
             val later = V2CreditRepository(db).reconcile(seq, mapOf(day to 0L), start.plusSeconds(120))
             assertTrue(StampId.SUEZ_FINISH in later.passport.granted)
             assertNull(later.passport.granted[StampId.SUEZ_FINISH])

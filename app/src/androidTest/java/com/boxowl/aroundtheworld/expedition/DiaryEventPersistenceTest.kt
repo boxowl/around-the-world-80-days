@@ -18,7 +18,7 @@ class DiaryEventPersistenceTest {
     private val start = Instant.parse("2026-09-13T07:00:00Z")
     private val date = LocalDate.parse("2026-09-13")
     private fun open(name: String) = Room.databaseBuilder(context, ExpeditionDatabase::class.java, name)
-        .addMigrations(ExpeditionDatabase.MIGRATION_1_2, ExpeditionDatabase.MIGRATION_2_3).build()
+        .addMigrations(ExpeditionDatabase.MIGRATION_1_2, ExpeditionDatabase.MIGRATION_2_3, ExpeditionDatabase.MIGRATION_3_4).build()
 
     @Test fun newEventAppearsOnceAndSurvivesRestartAndCorrection() = runBlocking {
         val name = "f06-events-${System.nanoTime()}.db"

@@ -50,9 +50,14 @@ interface ExpeditionDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun putDiary(rows: List<DiaryRow>)
 }
 
-@Database(entities = [ExpeditionRow::class, DailyStepsRow::class, DiaryRow::class], version = 3, exportSchema = false)
+@Database(
+    entities = [ExpeditionRow::class, DailyStepsRow::class, DiaryRow::class,
+        ExpeditionV2Row::class, DailyCreditRow::class, PassportStampRow::class, PassportMetaRow::class],
+    version = 4, exportSchema = false,
+)
 abstract class ExpeditionDatabase : RoomDatabase() {
     abstract fun expeditionDao(): ExpeditionDao
+    abstract fun v2Dao(): V2Dao
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -69,10 +74,19 @@ abstract class ExpeditionDatabase : RoomDatabase() {
                 db.execSQL("UPDATE unlocked_diary SET viewed = 1 WHERE stopId = 'london'")
             }
         }
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `expedition_v2` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startedAt` TEXT NOT NULL, `zone` TEXT NOT NULL, `mode` TEXT NOT NULL, `state` TEXT NOT NULL, `activeSlot` INTEGER, `endedAt` TEXT, `lastReadAt` TEXT, `routeVersion` INTEGER NOT NULL, `geometryVersion` INTEGER NOT NULL, `strideMillimeters` INTEGER NOT NULL, `bookMetersPerRealMeter` INTEGER NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_expedition_v2_activeSlot` ON `expedition_v2` (`activeSlot`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `daily_credit` (`expeditionSeq` INTEGER NOT NULL, `date` TEXT NOT NULL, `steps` INTEGER NOT NULL, `realMeters` INTEGER NOT NULL, PRIMARY KEY(`expeditionSeq`, `date`))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `passport_stamps` (`expeditionSeq` INTEGER NOT NULL, `stampId` TEXT NOT NULL, `grantedAt` TEXT, PRIMARY KEY(`expeditionSeq`, `stampId`))")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `passport_meta` (`expeditionSeq` INTEGER NOT NULL, `baselineBookMeters` INTEGER NOT NULL, PRIMARY KEY(`expeditionSeq`))")
+            }
+        }
         @Volatile private var instance: ExpeditionDatabase? = null
         fun get(context: Context): ExpeditionDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, ExpeditionDatabase::class.java, "expedition.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build().also { instance = it }
         }
     }

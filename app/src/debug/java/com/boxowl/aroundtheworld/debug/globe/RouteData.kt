@@ -1,5 +1,7 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+
 /**
  * TEST DATA for the V21 globe prototype — hand-drawn approximation of the novel's
  * route with sea legs routed around land. Not a product contract: thresholds,

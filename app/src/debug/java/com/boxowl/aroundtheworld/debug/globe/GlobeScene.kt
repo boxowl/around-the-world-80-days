@@ -1,5 +1,7 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType

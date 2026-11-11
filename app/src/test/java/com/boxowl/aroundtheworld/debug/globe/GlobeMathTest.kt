@@ -1,5 +1,7 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+
 import java.io.File
 import java.io.FileInputStream
 import kotlin.math.abs

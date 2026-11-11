@@ -1,4 +1,4 @@
-package com.boxowl.aroundtheworld.debug.globe
+package com.boxowl.aroundtheworld.expedition.globe
 
 import kotlin.math.PI
 import kotlin.math.acos

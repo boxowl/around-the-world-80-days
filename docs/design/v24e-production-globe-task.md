@@ -27,3 +27,9 @@ Debug-рендер разбит на `GlobeMath`, `GlobeScene`, `CoastlineData`,
 - `GlobeMath.kt` и `CoastlineData.kt` не используют синтетический маршрут и подходят для общего слоя; `GlobeScene.kt` сейчас зависит от типа `RouteData.Route`, а `RouteData.kt` содержит тестовые координаты и не должен целиком попадать в release.
 - `RoutePosition.kt` уже измеряет `RouteDatasetV1` и строит маршрут по `RouteMeasure`, но возвращает типы из debug-пакета. Следующий кодовый шаг: выделить только типы `Route`/`Transport` в production adapter и перевести `GlobeScene`/`RoutePosition` на них; оставить тестовые `RouteData.nodes` в debug. Проверить старые debug-тесты после механического переноса до подключения UI.
 - `GlobeSliceActivity` содержит и проверенный Canvas, и диагностический/синтетический экран; в production переносится только Canvas-рисование. `SliceScenario`, extras и диагностический баннер остаются в debug.
+
+## Проверенный шаг: общая геометрия и asset
+
+`GlobeMath.kt` и `CoastlineData.kt` перенесены из debug в `src/main/.../expedition/globe` без изменения формул; debug-прототип и существующие JVM-тесты теперь импортируют общий код. `ne_land.bin` и его README перенесены в `src/main/assets`, поэтому production сможет читать тот же набор береговых линий. После переноса `assembleDebug`, `testDebugUnitTest`, `lintDebug` прошли. Это инфраструктурный шаг: `GlobeScene`/`RoutePosition` и production UI пока остаются в debug, карта v2 всё ещё показывает карточки.
+
+Следующий шаг — общий route adapter: вынести типы маршрута из `RouteData` без синтетических `nodes`, перевести `RoutePosition` и `GlobeScene` на них, сохранить работу debug-прототипа и его тестов.

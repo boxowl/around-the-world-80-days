@@ -1,4 +1,4 @@
-# ne_land.bin — береговые линии для debug-прототипа глобуса (V21)
+# ne_land.bin — береговые линии для глобуса (V21/V2.4e)
 
 ## Источник
 
@@ -14,7 +14,7 @@
 
 ```sh
 python3 app/src/debug/tools/prepare_land.py ne_50m_land.geojson \
-    app/src/debug/assets/ne_land.bin 0.10
+    app/src/main/assets/ne_land.bin 0.10
 ```
 
 Пайплайн: отброшены микро-острова (< 0.35° охвата), упрощение
@@ -22,4 +22,4 @@ python3 app/src/debug/tools/prepare_land.py ne_50m_land.geojson \
 zigzag-varint. Формат описан в заголовке `prepare_land.py`.
 Итог: 616 полигонов, 11 031 точка, 36.3 КБ.
 
-Данные используются только debug-сборкой (`app/src/debug/`), в release не входят.
+Данные включены в production asset после проверки происхождения и условий Natural Earth. Используются общим декодером; debug-прототип читает тот же asset.

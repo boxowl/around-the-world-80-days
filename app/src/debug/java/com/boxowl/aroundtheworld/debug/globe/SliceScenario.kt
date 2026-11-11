@@ -1,5 +1,7 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.RoutePosition
+
 import com.boxowl.aroundtheworld.expedition.credit.CreditLedger
 import java.time.LocalDate
 

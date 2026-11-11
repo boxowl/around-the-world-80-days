@@ -11,7 +11,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Pure spherical math for the V21 debug globe prototype.
+ * Pure spherical math shared by the production globe and debug prototype.
  * No Android dependencies: everything here is JVM-unit-testable.
  */
 
@@ -191,22 +191,3 @@ fun cross(a: Vec3, b: Vec3) = Vec3(
     a.z * b.x - a.x * b.z,
     a.x * b.y - a.y * b.x,
 )
-
-/** Samples a circle of [radiusDeg] angular radius around ([latDeg], [lonDeg]).
- *  Ring comes out CCW in the lon/lat plane, like Natural Earth exteriors. Used by tests. */
-fun syntheticRing(latDeg: Double, lonDeg: Double, radiusDeg: Double, stepDeg: Double = 5.0): List<Vec3> {
-    val center = latLonToVec(latDeg, lonDeg)
-    val east = Vec3(-center.y, center.x, 0.0).let { if (it.norm() < 1e-9) Vec3(1.0, 0.0, 0.0) else it.normalized() }
-    val north = cross(center, east).normalized()
-    val r = Math.toRadians(radiusDeg)
-    val pts = mutableListOf<Vec3>()
-    var bearing = 0.0
-    while (bearing < 360.0 - 1e-9) {
-        val br = Math.toRadians(bearing)
-        val p = center * cos(r) + (north * cos(br) + east * sin(br)) * sin(r)
-        pts.add(p.normalized())
-        bearing += stepDeg
-    }
-    pts.reverse() // bearings sample clockwise on the map; exteriors must be CCW
-    return pts
-}

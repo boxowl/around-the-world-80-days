@@ -1,6 +1,7 @@
 package com.boxowl.aroundtheworld.debug.globe
 
 import com.boxowl.aroundtheworld.expedition.globe.*
+import com.boxowl.aroundtheworld.expedition.route.Transport
 
 import android.content.Intent
 import android.os.Bundle
@@ -66,13 +67,13 @@ private const val GLOBE_SCALE = 1.0f
  * ELEPHANT and SLEDGE (the two exotic legs) get distinct accent colors so the
  * legs stand out in the debug slice. Mapping is a debug-only decision.
  */
-internal fun transportColor(t: RouteData.Transport): Color = when (t) {
-    RouteData.Transport.TRAIN -> Color(0xFFD9822B)
-    RouteData.Transport.FERRY -> Color(0xFFB0A26A)
-    RouteData.Transport.SHIP -> Color(0xFF3E6FA8)
-    RouteData.Transport.WATERWAY -> Color(0xFF3AA6B9)
-    RouteData.Transport.ELEPHANT -> Color(0xFF8B5A2B)
-    RouteData.Transport.SLEDGE -> Color(0xFF7D5BA6)
+internal fun transportColor(t: Transport): Color = when (t) {
+    Transport.TRAIN -> Color(0xFFD9822B)
+    Transport.FERRY -> Color(0xFFB0A26A)
+    Transport.SHIP -> Color(0xFF3E6FA8)
+    Transport.WATERWAY -> Color(0xFF3AA6B9)
+    Transport.ELEPHANT -> Color(0xFF8B5A2B)
+    Transport.SLEDGE -> Color(0xFF7D5BA6)
 }
 
 /**
@@ -122,7 +123,7 @@ private fun GlobeSliceScreen(rings: List<CoastlineData.Ring>, resolved: SliceSce
     val bookKm = SliceScenario.bookKmOf(ledger)
 
     val route = remember(bookKm) { RoutePosition.buildSceneRoute(bookKm) }
-    val scene = remember(rings, route) { GlobeScene(rings, route) }
+    val scene = remember(rings, route) { GlobeScene(rings, route, RouteData.stops) }
     val (heroLat, heroLon) = remember(route) { vecToLatLon(route.heroPos) }
 
     MaterialTheme(
@@ -332,17 +333,17 @@ private fun DiagnosticsPanel(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            LegendDot(transportColor(RouteData.Transport.TRAIN))
+            LegendDot(transportColor(Transport.TRAIN))
             Text("поезд", style = MaterialTheme.typography.labelSmall)
-            LegendDot(transportColor(RouteData.Transport.SHIP))
+            LegendDot(transportColor(Transport.SHIP))
             Text("корабль", style = MaterialTheme.typography.labelSmall)
-            LegendDot(transportColor(RouteData.Transport.FERRY))
+            LegendDot(transportColor(Transport.FERRY))
             Text("паром", style = MaterialTheme.typography.labelSmall)
-            LegendDot(transportColor(RouteData.Transport.WATERWAY))
+            LegendDot(transportColor(Transport.WATERWAY))
             Text("канал/река", style = MaterialTheme.typography.labelSmall)
-            LegendDot(transportColor(RouteData.Transport.ELEPHANT))
+            LegendDot(transportColor(Transport.ELEPHANT))
             Text("слон", style = MaterialTheme.typography.labelSmall)
-            LegendDot(transportColor(RouteData.Transport.SLEDGE))
+            LegendDot(transportColor(Transport.SLEDGE))
             Text("сани", style = MaterialTheme.typography.labelSmall)
             LegendDot(FutureColor)
             Text("впереди", style = MaterialTheme.typography.labelSmall)

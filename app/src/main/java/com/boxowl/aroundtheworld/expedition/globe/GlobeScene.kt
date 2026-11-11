@@ -1,8 +1,8 @@
-package com.boxowl.aroundtheworld.debug.globe
+package com.boxowl.aroundtheworld.expedition.globe
 
-import com.boxowl.aroundtheworld.expedition.globe.*
 
 import androidx.compose.ui.geometry.Offset
+import com.boxowl.aroundtheworld.expedition.route.Transport
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import kotlin.math.min
@@ -14,10 +14,11 @@ import kotlin.math.min
  */
 class GlobeScene(
     private val rings: List<CoastlineData.Ring>,
-    private val route: RouteData.Route,
+    private val route: GlobeRoute,
+    private val stops: List<GlobeStop>,
 ) {
 
-    data class StopMark(val stop: RouteData.Stop, val center: Offset)
+    data class StopMark(val stop: GlobeStop, val center: Offset)
 
     class Layout(
         val center: Offset,
@@ -26,7 +27,7 @@ class GlobeScene(
         val land: Path,
         val coast: Path,
         val futureRoute: Path,
-        val pastRoute: List<Triple<Offset, Offset, RouteData.Transport>>,
+        val pastRoute: List<Triple<Offset, Offset, Transport>>,
         val stopMarks: List<StopMark>,
         val hero: Offset?,
     )
@@ -96,9 +97,9 @@ class GlobeScene(
             addDiskSubpath(land, loop, r, cx, cy)
         }
 
-        // --- route (test data) ---
+        // --- route from the supplied measured or debug adapter ---
         val future = Path()
-        val past = mutableListOf<Triple<Offset, Offset, RouteData.Transport>>()
+        val past = mutableListOf<Triple<Offset, Offset, Transport>>()
         var futureOpen = false
         val rp = route.points
         val heroDist = route.heroDistDeg
@@ -159,7 +160,7 @@ class GlobeScene(
         }
 
         // --- stops & hero ---
-        val marks = RouteData.stops.mapNotNull { stop ->
+        val marks = stops.mapNotNull { stop ->
             val v = latLonToVec(stop.lat, stop.lon)
             if (!frame.isVisible(v)) return@mapNotNull null
             StopMark(stop, frame.project(v).toOffset())

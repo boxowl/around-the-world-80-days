@@ -20,3 +20,10 @@ Debug-рендер разбит на `GlobeMath`, `GlobeScene`, `CoastlineData`,
 4. JVM-тесты проекции/границ, assemble/unit/lint, эмуляторная UI-проверка и отдельное строгое ревью геометрии/межмодульной интеграции; CI зелёный до автоматического слияния. P02/F02/Q01 остаются на физическом устройстве.
 
 Порядок: карта зависимостей и лицензии assets → выделение общего рендера без изменения формул → production adapter → экран → тесты и визуальная проверка → строгий review → PR/CI/merge.
+
+## Проверенный первый шаг: зависимости и происхождение
+
+- `ne_land.bin` лежит только в `src/debug/assets`; локальный README фиксирует Natural Earth `ne_50m_land`, 616 полигонов/11 031 точек, упрощение и формат. [Официальные условия Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) прямо разрешают модификацию и распространение этих данных как public domain. Переносить вместе с README и указанием происхождения.
+- `GlobeMath.kt` и `CoastlineData.kt` не используют синтетический маршрут и подходят для общего слоя; `GlobeScene.kt` сейчас зависит от типа `RouteData.Route`, а `RouteData.kt` содержит тестовые координаты и не должен целиком попадать в release.
+- `RoutePosition.kt` уже измеряет `RouteDatasetV1` и строит маршрут по `RouteMeasure`, но возвращает типы из debug-пакета. Следующий кодовый шаг: выделить только типы `Route`/`Transport` в production adapter и перевести `GlobeScene`/`RoutePosition` на них; оставить тестовые `RouteData.nodes` в debug. Проверить старые debug-тесты после механического переноса до подключения UI.
+- `GlobeSliceActivity` содержит и проверенный Canvas, и диагностический/синтетический экран; в production переносится только Canvas-рисование. `SliceScenario`, extras и диагностический баннер остаются в debug.

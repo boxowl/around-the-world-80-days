@@ -1,9 +1,13 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+
 import java.io.File
 import java.io.FileInputStream
 import kotlin.math.abs
 import kotlin.math.sqrt
+import kotlin.math.cos
+import kotlin.math.sin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -151,7 +155,7 @@ class GlobeMathTest {
 
     @Test
     fun `asset decodes into unit vectors within valid lat range`() {
-        val file = File("src/debug/assets/ne_land.bin")
+        val file = File("src/main/assets/ne_land.bin")
         assertTrue("asset missing: ${file.absolutePath}", file.exists())
         val rings = FileInputStream(file).use { CoastlineData.decode(it) }
         assertTrue(rings.size > 100)
@@ -165,4 +169,23 @@ class GlobeMathTest {
             }
         }
     }
+}
+
+/** Samples a circle of [radiusDeg] angular radius around ([latDeg], [lonDeg]).
+ *  Ring comes out CCW in the lon/lat plane, like Natural Earth exteriors. Used by tests. */
+fun syntheticRing(latDeg: Double, lonDeg: Double, radiusDeg: Double, stepDeg: Double = 5.0): List<Vec3> {
+    val center = latLonToVec(latDeg, lonDeg)
+    val east = Vec3(-center.y, center.x, 0.0).let { if (it.norm() < 1e-9) Vec3(1.0, 0.0, 0.0) else it.normalized() }
+    val north = cross(center, east).normalized()
+    val r = Math.toRadians(radiusDeg)
+    val pts = mutableListOf<Vec3>()
+    var bearing = 0.0
+    while (bearing < 360.0 - 1e-9) {
+        val br = Math.toRadians(bearing)
+        val p = center * cos(r) + (north * cos(br) + east * sin(br)) * sin(r)
+        pts.add(p.normalized())
+        bearing += stepDeg
+    }
+    pts.reverse() // bearings sample clockwise on the map; exteriors must be CCW
+    return pts
 }

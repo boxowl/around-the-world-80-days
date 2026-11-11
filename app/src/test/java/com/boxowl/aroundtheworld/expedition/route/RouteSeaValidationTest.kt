@@ -16,7 +16,7 @@ import org.junit.Test
 /**
  * Sea-leg validation: no SHIP/FERRY leg of RouteDatasetV1 may cross land.
  *
- * Land data: app/src/debug/assets/ne_land.bin (Natural Earth ne_50m_land,
+ * Land data: app/src/main/assets/ne_land.bin (Natural Earth ne_50m_land,
  * public domain; 16-bit quantized, zigzag-varint delta rings — same format as
  * the debug-globe CoastlineData, decoded here by a minimal independent
  * decoder because tests must not depend on the debug source set).
@@ -116,7 +116,7 @@ class RouteSeaValidationTest {
 
     /** Rings as unit vectors, decoded once. */
     private val rings: List<RingPts> by lazy {
-        val file = File("src/debug/assets/ne_land.bin")
+        val file = File("src/main/assets/ne_land.bin")
         assertTrue("asset missing: ${file.absolutePath}", file.exists())
         FileInputStream(file).use { stream ->
             decodeRings(stream).map { ring ->

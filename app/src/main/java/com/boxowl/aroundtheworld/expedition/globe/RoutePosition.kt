@@ -1,16 +1,18 @@
-package com.boxowl.aroundtheworld.debug.globe
+package com.boxowl.aroundtheworld.expedition.globe
+
 
 import com.boxowl.aroundtheworld.expedition.route.EARTH_RADIUS_KM
 import com.boxowl.aroundtheworld.expedition.route.RouteDatasetV1
 import com.boxowl.aroundtheworld.expedition.route.RouteLeg
 import com.boxowl.aroundtheworld.expedition.route.RouteMeasure
 import com.boxowl.aroundtheworld.expedition.route.RouteNode
+import com.boxowl.aroundtheworld.expedition.route.Transport
 import com.boxowl.aroundtheworld.expedition.route.distanceKm
 import kotlin.math.PI
 import kotlin.math.ceil
 
 /**
- * V2.0d debug slice: positioning on the versioned route (RouteDatasetV1) by
+ * Production route adapter: positioning on the versioned route (RouteDatasetV1) by
  * BOOK kilometres. Pure JVM math, no Android dependencies — unit-tested in
  * app/src/test (RoutePositionTest).
  *
@@ -101,18 +103,18 @@ object RoutePosition {
 
     /**
      * Dense route polyline for GlobeScene built from RouteDatasetV1 (NOT from
-     * RouteData TEST DATA): nodes of every leg are slerp-densified with
-     * [stepDeg] steps; the cumulative [RouteData.Route.distDeg] accumulates
+     * debug test coordinates): nodes of every leg are slerp-densified with
+     * [stepDeg] steps; the cumulative [GlobeRoute.distDeg] accumulates
      * BOOK degrees of arc (geometric degrees x pathMultiplier), so cutting
      * past/future at heroDistDeg matches [positionAt] of the same book km.
      */
-    fun buildSceneRoute(bookKm: Double, stepDeg: Double = 1.5): RouteData.Route {
+    fun buildSceneRoute(bookKm: Double, stepDeg: Double = 1.5): GlobeRoute {
         val pts = ArrayList<Vec3>()
         val dist = ArrayList<Double>()
-        val modes = ArrayList<RouteData.Transport>()
+        val modes = ArrayList<Transport>()
         var acc = 0.0
         for (leg in legs) {
-            val mode = RouteData.Transport.valueOf(leg.transport.name)
+            val mode = Transport.valueOf(leg.transport.name)
             val mult = leg.pathMultiplier
             val poly = RouteDatasetV1.polylineOf(leg)
             for (i in 0 until poly.size - 1) {
@@ -133,7 +135,7 @@ object RoutePosition {
             }
         }
         val clamped = bookKm.coerceIn(0.0, totalKm)
-        return RouteData.Route(
+        return GlobeRoute(
             points = pts,
             distDeg = dist.toDoubleArray(),
             segMode = modes,

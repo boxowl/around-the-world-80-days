@@ -1,5 +1,8 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+import com.boxowl.aroundtheworld.expedition.route.Transport
+
 import com.boxowl.aroundtheworld.expedition.route.EARTH_RADIUS_KM
 import com.boxowl.aroundtheworld.expedition.route.RouteDatasetV1
 import com.boxowl.aroundtheworld.expedition.route.RouteMeasure

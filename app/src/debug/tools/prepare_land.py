@@ -8,7 +8,7 @@ Source data (NOT committed to Git, download manually):
 
 Pipeline: drop micro-islands -> Douglas-Peucker simplify in lon/lat degrees
 -> force ring orientation (exterior CCW, holes CW) -> quantize to 16 bit
--> delta-encode with zigzag varints -> app/src/debug/assets/ne_land.bin
+-> delta-encode with zigzag varints -> app/src/main/assets/ne_land.bin
 
 Binary format (little-endian):
   4s   magic "NEL1"
@@ -24,7 +24,7 @@ Quantization: lon q = round((lon+180)/360*65535) mod 65536 (wraps, deltas are
 chosen minimal mod 65536); lat q = clamp(round((lat+90)/180*65535), 0, 65535).
 uv = unsigned LEB128, sv = zigzag(uv).
 
-Usage: python3 prepare_land.py ne_50m_land.geojson ../assets/ne_land.bin [tol_deg]
+Usage: python3 prepare_land.py ne_50m_land.geojson ../../../main/assets/ne_land.bin [tol_deg]
 """
 import json
 import struct

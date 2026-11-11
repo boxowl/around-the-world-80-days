@@ -1,5 +1,8 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+import com.boxowl.aroundtheworld.expedition.route.Transport
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -79,12 +82,12 @@ class GlobeProtoActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val rings = assets.open("ne_land.bin").use { CoastlineData.decode(it) }
         val route = RouteData.build()
-        setContent { GlobeProtoScreen(GlobeScene(rings, route), route) }
+        setContent { GlobeProtoScreen(GlobeScene(rings, route, RouteData.stops), route) }
     }
 }
 
 @Composable
-private fun GlobeProtoScreen(scene: GlobeScene, route: RouteData.Route) {
+private fun GlobeProtoScreen(scene: GlobeScene, route: GlobeRoute) {
     val (heroLat, heroLon) = remember { vecToLatLon(route.heroPos) }
     var centerLat by remember { mutableStateOf(heroLat) }
     var centerLon by remember { mutableStateOf(heroLon) }
@@ -270,7 +273,7 @@ private fun GlobeCanvas(
         )
         for ((o0, o1, mode) in layout.pastRoute) {
             drawLine(
-                color = if (mode == RouteData.Transport.TRAIN) TrainColor else ShipColor,
+                color = if (mode == Transport.TRAIN) TrainColor else ShipColor,
                 start = o0,
                 end = o1,
                 strokeWidth = 3.dp.toPx(),

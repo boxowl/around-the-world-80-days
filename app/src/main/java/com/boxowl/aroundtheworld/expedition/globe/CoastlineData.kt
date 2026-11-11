@@ -1,10 +1,10 @@
-package com.boxowl.aroundtheworld.debug.globe
+package com.boxowl.aroundtheworld.expedition.globe
 
 import java.io.InputStream
 
 /**
  * Decoder for the ne_land.bin asset produced by app/src/debug/tools/prepare_land.py
- * (Natural Earth ne_50m_land, public domain — see assets/ne_land.README.md).
+ * (Natural Earth ne_50m_land, public domain — see app/src/main/assets/ne_land.README.md).
  * Rings are decoded straight into unit 3D vectors, so the antimeridian needs no
  * special handling downstream.
  */

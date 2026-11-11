@@ -1,5 +1,8 @@
 package com.boxowl.aroundtheworld.debug.globe
 
+import com.boxowl.aroundtheworld.expedition.globe.*
+import com.boxowl.aroundtheworld.expedition.route.Transport
+
 /**
  * TEST DATA for the V21 globe prototype — hand-drawn approximation of the novel's
  * route with sea legs routed around land. Not a product contract: thresholds,
@@ -16,10 +19,6 @@ object RouteData {
      * FERRY/ELEPHANT/SLEDGE/WATERWAY exist so the V2.0d slice (GlobeSliceActivity)
      * can mirror every expedition.route.Transport by name for per-transport colors.
      */
-    enum class Transport { TRAIN, SHIP, FERRY, ELEPHANT, SLEDGE, WATERWAY }
-
-    data class Stop(val name: String, val lat: Double, val lon: Double)
-
     /** [modeToNext] is the transport of the leg starting at this node; null for the last. */
     data class Node(val lat: Double, val lon: Double, val modeToNext: Transport?, val stop: String? = null)
 
@@ -101,28 +100,18 @@ object RouteData {
         n(51.5074, -0.1278, null, "Лондон"),
     )
 
-    val stops: List<Stop> = nodes.mapNotNull { node ->
-        node.stop?.let { Stop(it, node.lat, node.lon) }
+    val stops: List<GlobeStop> = nodes.mapNotNull { node ->
+        node.stop?.let { GlobeStop(it, node.lat, node.lon) }
     }.let { all ->
         // Drop the duplicated final "Лондон" (same place as the start).
         all.subList(0, all.size - 1)
     }
 
-    /** Dense route polyline with cumulative distance (degrees of arc) and leg transport. */
-    class Route(
-        val points: List<Vec3>,
-        val distDeg: DoubleArray,
-        val segMode: List<Transport>,
-        val totalDeg: Double,
-        val heroDistDeg: Double,
-        val heroPos: Vec3,
-    )
-
     /** TEST hero position: inside the Port-Said -> Suez leg (color splits mid-leg). */
     private const val HERO_LEG_STOP = "Суэц"
     private const val HERO_LEG_FRACTION = 0.85
 
-    fun build(stepDeg: Double = 1.5): Route {
+    fun build(stepDeg: Double = 1.5): GlobeRoute {
         val pts = ArrayList<Vec3>()
         val dist = ArrayList<Double>()
         val modes = ArrayList<Transport>()
@@ -153,7 +142,7 @@ object RouteData {
             }
             acc += legDeg
         }
-        return Route(
+        return GlobeRoute(
             points = pts,
             distDeg = dist.toDoubleArray(),
             segMode = modes,

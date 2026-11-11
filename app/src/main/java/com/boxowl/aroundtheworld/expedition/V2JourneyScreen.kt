@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,15 +36,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
+import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import com.boxowl.aroundtheworld.expedition.passport.StampId
 import com.boxowl.aroundtheworld.expedition.route.RouteMeasure
 import com.boxowl.aroundtheworld.health.HealthConnectStepsGateway
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.Duration
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 /** The first production v2 surface; the illustrated globe follows as a separate block. */
 @Composable
@@ -63,6 +67,17 @@ internal fun V2JourneyScreen(
     }
     val row = snapshot.expedition
     val zone = ZoneId.of(row.zone)
+    var now by remember(row.id) { mutableStateOf(Instant.now()) }
+    LaunchedEffect(row.id, zone) {
+        while (true) {
+            now = Instant.now()
+            val nextMidnight = now.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
+            delay(Duration.between(now, nextMidnight).toMillis().coerceAtLeast(1L))
+        }
+    }
+    val calendar = V2WagerCalendar.evaluate(
+        Instant.parse(row.startedAt), zone, JourneyMode.valueOf(row.mode), snapshot.ledger, now,
+    )
     val format = remember(zone) { DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(zone) }
     var page by rememberSaveable { mutableStateOf("path") }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -71,7 +86,7 @@ internal fun V2JourneyScreen(
     val sync = current.sync
     val realKm = snapshot.ledger.totalRealMeters / 1000.0
     val bookKm = snapshot.ledger.totalBookMeters / 1000.0
-    val today = Instant.now().atZone(zone).toLocalDate()
+    val today = now.atZone(zone).toLocalDate()
     val todaySteps = snapshot.stepsByDay[today]
 
     Column(Modifier.fillMaxSize()) {
@@ -83,8 +98,10 @@ internal fun V2JourneyScreen(
                 "path" -> {
                     Text("Путь вокруг света", style = MaterialTheme.typography.headlineMedium)
                     Text("Расчётное реальное расстояние: ${km(realKm)} км")
-                    Text("Книжный прогресс: ${km(bookKm)} из ${String.format(Locale.US, "%.0f", RouteMeasure.totalKm())} км")
+                    Text("Книжный прогресс: ${preciseBookKm(bookKm)} км · маршрут ≈${String.format(Locale.US, "%.0f", RouteMeasure.totalKm())} км")
                     Text("Шаги сегодня: ${todaySteps?.toString() ?: "нет данных"}")
+                    Text("Календарный день: ${calendar.dayNumber}")
+                    WagerCalendarStatus(calendar, format)
                     Text("Длина шага сохранена для этой экспедиции; это оценка расстояния, а не показание GPS.")
                     SyncStatus(sync, current.syncing)
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
@@ -113,6 +130,7 @@ internal fun V2JourneyScreen(
                     Text("Настройки экспедиции", style = MaterialTheme.typography.headlineMedium)
                     Text(if (row.mode == JourneyMode.WAGER.name) "Пари на 80 календарных дней" else "Свободное путешествие")
                     Text("Старт: ${format.format(Instant.parse(row.startedAt))} · пояс ${row.zone}")
+                    WagerCalendarStatus(calendar, format)
                     Text("Длина шага: ${String.format(Locale.US, "%.1f", row.strideMillimeters / 10.0)} см (зафиксирована)")
                     row.lastReadAt?.let { Text("Последняя успешная сверка: ${format.format(Instant.parse(it))}") }
                     SyncStatus(sync, current.syncing)
@@ -138,6 +156,20 @@ internal fun V2JourneyScreen(
                     )
                 }
         }
+    }
+}
+
+@Composable
+private fun WagerCalendarStatus(
+    calendar: V2WagerCalendar.Result,
+    format: DateTimeFormatter,
+) {
+    calendar.deadline?.let { Text("Срок пари: ${format.format(it)}") }
+    when (calendar.status) {
+        WagerStatus.ACTIVE -> Text("Пари продолжается. В зачёт срока: ${preciseBookKm(calendar.wagerBookMeters / 1000.0)} книжных км.")
+        WagerStatus.WON -> Text("Пари выиграно по подтверждённым дням в пределах срока.")
+        WagerStatus.EXPIRED -> Text("Срок пари истёк. Путь продолжается; поздние исправления дней в сроке могут изменить исход.")
+        WagerStatus.NOT_APPLICABLE -> Text("Свободное путешествие без срока.")
     }
 }
 
@@ -206,6 +238,7 @@ internal fun V2StartDialog(
 }
 
 private fun km(value: Double): String = String.format(Locale.US, "%.1f", value)
+private fun preciseBookKm(value: Double): String = String.format(Locale.US, "%.3f", value)
 
 private fun stampName(stamp: StampId): String = when (stamp) {
     StampId.LONDON_START -> "Лондон · старт"

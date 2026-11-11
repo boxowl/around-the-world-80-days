@@ -2,6 +2,7 @@ package com.boxowl.aroundtheworld.expedition
 
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -67,6 +68,38 @@ class V2JourneyUiTest {
             }
             assertTrue("production globe missing: $descriptions",
                 "Глобус: подтверждено 15.000 книжных километров" in descriptions)
+            val slider = findClass(instrumentation.uiAutomation.rootInActiveWindow, "android.widget.SeekBar")
+            assertTrue("browse slider label missing: $descriptions",
+                collectDescriptions(instrumentation.uiAutomation.rootInActiveWindow).contains("Позиция просмотра маршрута"))
+            val halfway = Bundle().apply {
+                putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, 0.5f)
+            }
+            assertTrue("browse slider missing", slider?.performAction(
+                AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id, halfway,
+            ) == true)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                descriptions = collectDescriptions(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Глобус: просмотр прошлого 7.500 книжных километров" in descriptions) break
+                Thread.sleep(100)
+            }
+            assertTrue("browsed globe missing: $descriptions",
+                "Глобус: просмотр прошлого 7.500 книжных километров" in descriptions)
+            val returnText = findText(instrumentation.uiAutomation.rootInActiveWindow, "Вернуться к текущей")
+            clickable = returnText
+            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+            assertTrue("return action missing", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                descriptions = collectDescriptions(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Глобус: подтверждено 15.000 книжных километров" in descriptions) break
+                Thread.sleep(100)
+            }
+            assertTrue("confirmed globe did not return: $descriptions",
+                "Глобус: подтверждено 15.000 книжных километров" in descriptions)
+            assertTrue("browse changed stored credit", runBlocking {
+                repository.loadActive()!!.ledger.totalBookMeters == 15_000L
+            })
         } finally {
             activity.finish()
             runBlocking { database.v2Dao().endExpedition(seq, Instant.now().toString()) }
@@ -91,6 +124,13 @@ class V2JourneyUiTest {
         if (node == null) return null
         if (node.text?.toString() == target) return node
         for (i in 0 until node.childCount) findText(node.getChild(i), target)?.let { return it }
+        return null
+    }
+
+    private fun findClass(node: AccessibilityNodeInfo?, target: String): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.className?.toString() == target) return node
+        for (i in 0 until node.childCount) findClass(node.getChild(i), target)?.let { return it }
         return null
     }
 }

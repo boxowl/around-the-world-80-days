@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.boxowl.aroundtheworld.expedition.path.DistanceLighting
+import com.boxowl.aroundtheworld.expedition.credit.BOOK_METERS_PER_REAL_METER
 import com.boxowl.aroundtheworld.expedition.route.RouteDatasetV1
 import com.boxowl.aroundtheworld.expedition.route.Transport
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +42,7 @@ private sealed interface CoastState {
 
 /** The user map derives its position exclusively from persisted v2 totals. */
 @Composable
-fun V2GlobeMap(totalRealMeters: Long, totalBookMeters: Long) {
+fun V2GlobeMap(displayBookMeters: Long, browsingPast: Boolean) {
     val context = LocalContext.current
     val coastState = produceState<CoastState>(CoastState.Loading, context) {
         value = withContext(Dispatchers.IO) {
@@ -54,9 +55,10 @@ fun V2GlobeMap(totalRealMeters: Long, totalBookMeters: Long) {
         coastState == CoastState.Error -> Text("Карта берегов недоступна. Список остановок доступен ниже.")
         rings == null -> Text("Загружаем карту…")
         else -> {
-            val bookKm = totalBookMeters / 1000.0
-            val darkness = DistanceLighting.darknessAtRealKm(totalRealMeters / 1000.0)
-            val route = remember(totalBookMeters) { RoutePosition.buildSceneRoute(bookKm) }
+            val bookKm = displayBookMeters / 1000.0
+            val displayRealKm = displayBookMeters.toDouble() / BOOK_METERS_PER_REAL_METER / 1000.0
+            val darkness = DistanceLighting.darknessAtRealKm(displayRealKm)
+            val route = remember(displayBookMeters) { RoutePosition.buildSceneRoute(bookKm) }
             val (lat, lon) = remember(route) { vecToLatLon(route.heroPos) }
             val stops = remember {
                 GlobeStopCardsV1.cards.map { card ->
@@ -72,7 +74,9 @@ fun V2GlobeMap(totalRealMeters: Long, totalBookMeters: Long) {
                     scene.layout(width, height, lat, lon, 1.0f)
                 }
                 Canvas(Modifier.fillMaxWidth().height(320.dp).semantics {
-                    contentDescription = "Глобус: подтверждено ${String.format(Locale.US, "%.3f", bookKm)} книжных километров; положение героя на маршруте"
+                    contentDescription = if (browsingPast)
+                        "Глобус: просмотр прошлого ${String.format(Locale.US, "%.3f", bookKm)} книжных километров; положение героя на маршруте"
+                    else "Глобус: подтверждено ${String.format(Locale.US, "%.3f", bookKm)} книжных километров; положение героя на маршруте"
                 }) {
                     val c = layout.center
                     val r = layout.radius

@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -38,6 +42,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
+import com.boxowl.aroundtheworld.expedition.globe.V2BrowsePosition
 import com.boxowl.aroundtheworld.expedition.globe.V2GlobeMap
 import com.boxowl.aroundtheworld.expedition.passport.StampId
 import com.boxowl.aroundtheworld.expedition.route.RouteMeasure
@@ -67,6 +72,12 @@ internal fun V2JourneyScreen(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     val row = snapshot.expedition
+    var browseBookMeters by rememberSaveable(row.id) { mutableStateOf<Long?>(null) }
+    val confirmedBookMeters = snapshot.ledger.totalBookMeters
+    LaunchedEffect(row.id, confirmedBookMeters) {
+        browseBookMeters = V2BrowsePosition.squeeze(browseBookMeters, confirmedBookMeters)
+    }
+    val displayBookMeters = V2BrowsePosition.effective(browseBookMeters, confirmedBookMeters)
     val zone = ZoneId.of(row.zone)
     var now by remember(row.id) { mutableStateOf(Instant.now()) }
     LaunchedEffect(row.id, zone) {
@@ -109,8 +120,28 @@ internal fun V2JourneyScreen(
                 }
                 "map" -> {
                     Text("Карта остановок", style = MaterialTheme.typography.headlineMedium)
-                    V2GlobeMap(snapshot.ledger.totalRealMeters, snapshot.ledger.totalBookMeters)
-                    Text("Герой и маршрут показаны по сохранённому прогрессу. Остановки расположены по измеренной геометрии.")
+                    V2GlobeMap(displayBookMeters, V2BrowsePosition.isBrowsing(browseBookMeters, confirmedBookMeters))
+                    Text(
+                        if (V2BrowsePosition.isBrowsing(browseBookMeters, confirmedBookMeters))
+                            "Просмотр прошлого: ${preciseBookKm(displayBookMeters / 1000.0)} книжных км из подтверждённых ${preciseBookKm(confirmedBookMeters / 1000.0)} км."
+                        else "Текущая позиция: ${preciseBookKm(confirmedBookMeters / 1000.0)} книжных км.",
+                    )
+                    Slider(
+                        modifier = Modifier.semantics {
+                            contentDescription = "Позиция просмотра маршрута"
+                            stateDescription = "${preciseBookKm(displayBookMeters / 1000.0)} из ${preciseBookKm(confirmedBookMeters / 1000.0)} книжных километров"
+                        },
+                        value = if (confirmedBookMeters == 0L) 0f else displayBookMeters.toFloat() / confirmedBookMeters.toFloat(),
+                        onValueChange = { fraction ->
+                            browseBookMeters = V2BrowsePosition.fromFraction(fraction, confirmedBookMeters)
+                                .takeIf { it < confirmedBookMeters }
+                        },
+                        enabled = confirmedBookMeters > 0L,
+                    )
+                    if (V2BrowsePosition.isBrowsing(browseBookMeters, confirmedBookMeters)) {
+                        OutlinedButton(onClick = { browseBookMeters = null }) { Text("Вернуться к текущей") }
+                    }
+                    Text("Просмотр меняет только карту; сохранённый путь, штампы и открытые остановки не меняются.")
                     GlobeStopCardsV1.cards.forEach { card ->
                         val reached = GlobeStopCardsV1.reached(card, snapshot.ledger.totalBookMeters.toDouble())
                         Text("${if (reached) "●" else "○"} ${card.nameRu} · ${km(card.thresholdBookKm)} книжных км")

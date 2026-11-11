@@ -52,6 +52,7 @@ class V2JourneyUiTest {
             assertTrue("estimated real distance missing: $visible", "Расчётное реальное расстояние: 0.8 км" in visible)
             assertTrue("book distance missing: $visible", "Книжный прогресс: 15.0" in visible)
             assertTrue("passport navigation missing: $visible", "Паспорт" in visible)
+            assertTrue("free journey should have no wager deadline: $visible", "Свободное путешествие без срока." in visible)
             assertTrue("stored v1 was changed", runBlocking { legacy.load()!!.startedAt == oldV1.startedAt })
         } finally {
             activity.finish()

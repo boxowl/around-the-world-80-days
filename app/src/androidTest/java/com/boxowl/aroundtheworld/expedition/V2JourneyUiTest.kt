@@ -54,6 +54,19 @@ class V2JourneyUiTest {
             assertTrue("passport navigation missing: $visible", "Паспорт" in visible)
             assertTrue("free journey should have no wager deadline: $visible", "Свободное путешествие без срока." in visible)
             assertTrue("stored v1 was changed", runBlocking { legacy.load()!!.startedAt == oldV1.startedAt })
+            val mapTab = findText(instrumentation.uiAutomation.rootInActiveWindow, "Карта")
+            var clickable = mapTab
+            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+            assertTrue("map tab missing", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            var descriptions = ""
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                descriptions = collectDescriptions(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Глобус: подтверждено 15.000 книжных километров" in descriptions) break
+                Thread.sleep(100)
+            }
+            assertTrue("production globe missing: $descriptions",
+                "Глобус: подтверждено 15.000 книжных километров" in descriptions)
         } finally {
             activity.finish()
             runBlocking { database.v2Dao().endExpedition(seq, Instant.now().toString()) }
@@ -65,5 +78,19 @@ class V2JourneyUiTest {
         val own = node.text?.toString().orEmpty()
         val children = (0 until node.childCount).joinToString(" ") { collectText(node.getChild(it)) }
         return "$own $children"
+    }
+
+    private fun collectDescriptions(node: AccessibilityNodeInfo?): String {
+        if (node == null) return ""
+        val own = node.contentDescription?.toString().orEmpty()
+        val children = (0 until node.childCount).joinToString(" ") { collectDescriptions(node.getChild(it)) }
+        return "$own $children"
+    }
+
+    private fun findText(node: AccessibilityNodeInfo?, target: String): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.text?.toString() == target) return node
+        for (i in 0 until node.childCount) findText(node.getChild(i), target)?.let { return it }
+        return null
     }
 }

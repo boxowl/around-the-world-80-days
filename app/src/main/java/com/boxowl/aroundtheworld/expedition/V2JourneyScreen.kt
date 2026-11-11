@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
+import com.boxowl.aroundtheworld.expedition.globe.V2GlobeMap
 import com.boxowl.aroundtheworld.expedition.passport.StampId
 import com.boxowl.aroundtheworld.expedition.route.RouteMeasure
 import com.boxowl.aroundtheworld.health.HealthConnectStepsGateway
@@ -108,7 +109,8 @@ internal fun V2JourneyScreen(
                 }
                 "map" -> {
                     Text("Карта остановок", style = MaterialTheme.typography.headlineMedium)
-                    Text("Карточки расположены по измеренной геометрии маршрута. Иллюстрированный глобус появится отдельным обновлением.")
+                    V2GlobeMap(snapshot.ledger.totalRealMeters, snapshot.ledger.totalBookMeters)
+                    Text("Герой и маршрут показаны по сохранённому прогрессу. Остановки расположены по измеренной геометрии.")
                     GlobeStopCardsV1.cards.forEach { card ->
                         val reached = GlobeStopCardsV1.reached(card, snapshot.ledger.totalBookMeters.toDouble())
                         Text("${if (reached) "●" else "○"} ${card.nameRu} · ${km(card.thresholdBookKm)} книжных км")

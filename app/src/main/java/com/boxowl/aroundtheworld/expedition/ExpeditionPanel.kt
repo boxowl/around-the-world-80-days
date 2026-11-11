@@ -43,7 +43,41 @@ import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 
 @Composable
-fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
+fun ExpeditionPanel() {
+    val v2Model: V2ExpeditionViewModel = viewModel()
+    val v2State by v2Model.state.collectAsStateWithLifecycle()
+    var showV2Start by rememberSaveable { mutableStateOf(false) }
+    when (val current = v2State) {
+        V2JourneyState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        V2JourneyState.NotStarted -> LegacyExpeditionPanel(onV2Start = { showV2Start = true })
+        is V2JourneyState.Active -> V2JourneyScreen(
+            current,
+            onRefresh = v2Model::refresh,
+            onRestart = { showV2Start = true },
+        )
+        V2JourneyState.StorageError -> Column(Modifier.padding(16.dp)) {
+            Text("Не удалось прочитать v2-экспедицию. Данные не сброшены.")
+            Button(onClick = v2Model::reload) { Text("Повторить чтение") }
+        }
+    }
+    if (showV2Start) V2StartDialog(
+        hasActiveV2 = v2State is V2JourneyState.Active,
+        onDismiss = { showV2Start = false },
+        onConfirm = { mode, strideMillimeters ->
+            val expectedSeq = (v2State as? V2JourneyState.Active)?.snapshot?.expedition?.id
+            showV2Start = false
+            v2Model.startConfirmed(expectedSeq, mode, strideMillimeters)
+        },
+    )
+}
+
+@Composable
+private fun LegacyExpeditionPanel(
+    model: ExpeditionViewModel = viewModel(),
+    onV2Start: () -> Unit,
+) {
     val state by model.state.collectAsStateWithLifecycle()
     val access by model.access.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
@@ -83,7 +117,7 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
     val current = state
     if (current is JourneyState.Active) {
         ActiveExpedition(current, access, actionError, requestPermissions, ::open,
-            model::refresh, model::checkAccess, model::markEventViewed)
+            model::refresh, model::checkAccess, model::markEventViewed, onV2Start)
     } else {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -117,6 +151,7 @@ fun ExpeditionPanel(model: ExpeditionViewModel = viewModel()) {
                     Button(onClick = { model.start(JourneyMode.valueOf(selectedModeName), selectedPace) }) {
                         Text("Начать экспедицию")
                     }
+                    TextButton(onClick = onV2Start) { Text("Начать новую кругосветную экспедицию v2") }
                     Text("Можно начать без доступа. Подключите шаги позже: выбранные режим и темп сохранятся.")
                 }
                 JourneyState.StorageError -> {
@@ -143,6 +178,7 @@ private fun ActiveExpedition(
     onRefresh: () -> Unit,
     onCheckAccess: () -> Unit,
     onEventViewed: (String) -> Unit,
+    onV2Start: () -> Unit,
 ) {
     val expedition = current.expedition
     val newEvent = expedition.stops.firstOrNull { it.id in current.unviewedEventIds }
@@ -242,6 +278,7 @@ private fun ActiveExpedition(
                         request = requestPermissions, open = open, retry = onCheckAccess)
                     if (current.syncing) Text("Сверяем дневные шаги…")
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
+                    TextButton(onClick = onV2Start) { Text("Начать кругосветную экспедицию v2") }
                     HorizontalDivider()
                     DiagnosticsPanel()
                 }

@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 class ExpeditionSchemaV2Test {
     private val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private fun open(name: String) = Room.databaseBuilder(context, ExpeditionDatabase::class.java, name)
-        .addMigrations(ExpeditionDatabase.MIGRATION_1_2, ExpeditionDatabase.MIGRATION_2_3).build()
+        .addMigrations(ExpeditionDatabase.MIGRATION_1_2, ExpeditionDatabase.MIGRATION_2_3, ExpeditionDatabase.MIGRATION_3_4).build()
 
     @Test fun migratesActualV1FileWithoutMovingProgressOrDiary() = runBlocking {
         val name = "f03-v1-${System.nanoTime()}.db"

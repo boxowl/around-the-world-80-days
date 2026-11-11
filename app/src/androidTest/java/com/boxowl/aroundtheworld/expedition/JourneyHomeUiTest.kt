@@ -95,19 +95,22 @@ class JourneyHomeUiTest {
                 val accumulated = StringBuilder(collectText(instrumentation.uiAutomation.rootInActiveWindow))
                 // The page scrolls; off-screen cards are absent from the accessibility tree.
                 for (scroll in 0 until 8) {
-                    if ("Кале" in accumulated) break
+                    if ("Кале" in accumulated && "СОХРАНЁННАЯ АКТИВНОСТЬ" in accumulated) break
                     if (!scrollForward(instrumentation.uiAutomation.rootInActiveWindow)) break
                     instrumentation.waitForIdleSync()
                     Thread.sleep(150)
                     accumulated.append(' ').append(collectText(instrumentation.uiAutomation.rootInActiveWindow))
                 }
                 visible = accumulated.toString().replace('\u00a0', ' ')
-                if ("Лондон → Суэц" in visible && "4 500" in visible && "Кале" in visible) break
+                if ("Лондон → Суэц" in visible && "4 500" in visible && "Кале" in visible &&
+                    "СОХРАНЁННАЯ АКТИВНОСТЬ" in visible) break
                 Thread.sleep(200)
             }
             assertTrue("Route title missing from UI: $visible", "Лондон → Суэц" in visible)
             assertTrue("Stored synthetic steps missing from UI: $visible", "4 500" in visible)
             assertTrue("Scaled next stop missing from UI: $visible", "Кале" in visible)
+            assertTrue("Weekly saved activity missing from UI: $visible", "СОХРАНЁННАЯ АКТИВНОСТЬ" in visible)
+            assertTrue("Known-day coverage missing from UI: $visible", "Подтверждены итоги за" in visible)
         } finally {
             activity.finish()
         }

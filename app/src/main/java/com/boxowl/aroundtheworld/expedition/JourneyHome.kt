@@ -34,6 +34,7 @@ import com.boxowl.aroundtheworld.ExpeditionMuted
 import com.boxowl.aroundtheworld.ExpeditionText
 import com.boxowl.aroundtheworld.expedition.scene.SeamlessJourneyCanvas
 import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -54,6 +55,7 @@ internal fun JourneyHome(
 ) {
     val today = now.atZone(expedition.zone).toLocalDate()
     val stepsToday = expedition.dailySteps[today]
+    val week = ActivityWeek.from(expedition, now)
     val stale = sync is SyncResult.ReadError || sync is SyncResult.PermissionRequired ||
         sync is SyncResult.Unavailable || sync is SyncResult.UpdateRequired
     val hasKnownProgress = expedition.dailySteps.isNotEmpty()
@@ -194,6 +196,34 @@ internal fun JourneyHome(
                     Icon(JourneyIcons.Refresh, contentDescription = null, Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(if (syncing) "Сверяем…" else "Сверить шаги")
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "СОХРАНЁННАЯ АКТИВНОСТЬ · 7 ДНЕЙ",
+                    color = ExpeditionText.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelMedium,
+                    letterSpacing = 2.sp,
+                )
+                Text(
+                    week.knownSteps?.let { "${formatJourneySteps(it)} шагов" } ?: "Нет данных",
+                    color = ExpeditionGold,
+                    fontFamily = FontFamily.Serif,
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                Text(
+                    "Подтверждены итоги за ${week.knownDays} из ${week.windowDays} дней экспедиции; " +
+                        "отсутствующий итог не считается нулём.",
+                    color = ExpeditionMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                )
+                expedition.lastReadAt?.let { lastRead ->
+                    Text(
+                        "Последняя успешная сверка: " +
+                            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(expedition.zone).format(lastRead),
+                        color = ExpeditionMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
             }

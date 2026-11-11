@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
+import com.boxowl.aroundtheworld.expedition.path.DistanceLighting
 import java.util.Locale
 
 private val Paper = Color(0xFFFAF5EE)
@@ -53,6 +54,7 @@ private val HeroColor = Color(0xFFC0392B)
 private val InkSoft = Color(0xFF4A4A5A)
 private val BannerBg = Color(0xFFC0392B)
 private val MarkDone = Color(0xFFD9A441)
+private val NightVeil = Color(0xFF071830)
 
 private const val GLOBE_SCALE = 1.0f
 
@@ -112,6 +114,7 @@ private fun GlobeSliceScreen(rings: List<CoastlineData.Ring>, resolved: SliceSce
     val ledger = resolved.ledger
     val realTodayKm = (ledger.creditForDay(SliceScenario.TODAY)?.realMeters ?: 0L) / 1000.0
     val realTotalKm = ledger.totalRealMeters / 1000.0
+    val darkness = DistanceLighting.darknessAtRealKm(realTotalKm)
     // Book km derive from CreditLedger.totalBookMeters ONLY: k = 20 is applied
     // exactly once, inside CreditLedger; here we just rescale meters -> km.
     val bookKm = SliceScenario.bookKmOf(ledger)
@@ -142,12 +145,14 @@ private fun GlobeSliceScreen(rings: List<CoastlineData.Ring>, resolved: SliceSce
                         bookKm = bookKm,
                         centerLat = heroLat,
                         centerLon = heroLon,
+                        darkness = darkness,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
                 DiagnosticsPanel(
                     realTodayKm = realTodayKm,
                     realTotalKm = realTotalKm,
+                    darkness = darkness,
                     bookKm = bookKm,
                     totalBookMeters = ledger.totalBookMeters,
                     description = resolved.description,
@@ -177,11 +182,18 @@ private fun SliceCanvas(
     bookKm: Double,
     centerLat: Double,
     centerLon: Double,
+    darkness: Double,
     modifier: Modifier,
 ) {
     val labelPaint = remember {
         android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.argb(255, 58, 58, 74)
+        }
+    }
+    val labelOutlinePaint = remember {
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.argb(255, 25, 34, 59)
+            style = android.graphics.Paint.Style.STROKE
         }
     }
     Canvas(modifier) {
@@ -196,6 +208,9 @@ private fun SliceCanvas(
         drawPath(layout.graticule, Coast.copy(alpha = 0.16f), style = Stroke(width = 0.75f.dp.toPx()))
         drawPath(layout.land, Land)
         drawPath(layout.coast, Coast.copy(alpha = 0.85f), style = Stroke(width = 0.9f.dp.toPx()))
+        // The displayed current position supplies real kilometres. Keep markers and
+        // route above the veil so they stay legible during synthetic night scenes.
+        drawCircle(NightVeil.copy(alpha = (darkness * 0.72).toFloat()), radius = r, center = c)
         drawPath(
             layout.futureRoute,
             FutureColor,
@@ -217,7 +232,11 @@ private fun SliceCanvas(
 
         // Chapter-finish markers on the same projection the scene just used.
         val frame = GlobeFrame(centerLat, centerLon)
+        labelPaint.color = if (darkness >= 0.5) android.graphics.Color.WHITE
+        else android.graphics.Color.argb(255, 58, 58, 74)
         labelPaint.textSize = 10.5f.sp.toPx()
+        labelOutlinePaint.textSize = labelPaint.textSize
+        labelOutlinePaint.strokeWidth = 2.dp.toPx()
         val dotR = 4.dp.toPx()
         for (mark in RoutePosition.chapterMarks) {
             if (!frame.isVisible(mark.pos)) continue
@@ -228,6 +247,12 @@ private fun SliceCanvas(
                 drawCircle(MarkDone, radius = dotR, center = p)
             }
             drawCircle(Coast, radius = dotR, center = p, style = Stroke(width = 1.2f.dp.toPx()))
+            if (darkness >= 0.5) drawContext.canvas.nativeCanvas.drawText(
+                mark.nameRu,
+                p.x + dotR + 3.dp.toPx(),
+                p.y - dotR,
+                labelOutlinePaint,
+            )
             drawContext.canvas.nativeCanvas.drawText(
                 mark.nameRu,
                 p.x + dotR + 3.dp.toPx(),
@@ -253,6 +278,7 @@ private fun SliceCanvas(
 private fun DiagnosticsPanel(
     realTodayKm: Double,
     realTotalKm: Double,
+    darkness: Double,
     bookKm: Double,
     totalBookMeters: Long,
     description: String,
@@ -287,6 +313,15 @@ private fun DiagnosticsPanel(
                 if (totalKm > 0) bookKm / totalKm * 100.0 else 0.0,
             ),
             style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "Освещение по отображаемым расчётным км: " +
+                when {
+                    darkness < 0.05 -> "светло"
+                    darkness > 0.95 -> "темно"
+                    else -> "переход"
+                } + String.format(Locale.US, " (затемнение %.0f%%)", darkness * 100.0),
+            style = MaterialTheme.typography.bodySmall,
         )
         Text(description, style = MaterialTheme.typography.bodySmall)
         StopCardPicker(totalBookMeters)

@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
+import com.boxowl.aroundtheworld.expedition.globe.V2CurrentTransport
 import com.boxowl.aroundtheworld.expedition.globe.V2StopCardDetails
 import com.boxowl.aroundtheworld.expedition.globe.V2BrowsePosition
 import com.boxowl.aroundtheworld.expedition.globe.V2GlobeMap
@@ -113,6 +114,11 @@ internal fun V2JourneyScreen(
                     Text("Путь вокруг света", style = MaterialTheme.typography.headlineMedium)
                     Text("Расчётное реальное расстояние: ${km(realKm)} км")
                     Text("Книжный прогресс: ${preciseBookKm(bookKm)} км · маршрут ≈${String.format(Locale.US, "%.0f", RouteMeasure.totalKm())} км")
+                    val travel = V2CurrentTransport.at(bookKm)
+                    Text(
+                        if (travel.completed) "Маршрут завершён · ${travel.transport}: ${travel.from} → ${travel.to}"
+                        else "Текущий транспорт: ${travel.transport} · ${travel.from} → ${travel.to} · глава ${travel.chapter}",
+                    )
                     Text("Шаги сегодня: ${todaySteps?.toString() ?: "нет данных"}")
                     Text("Календарный день: ${calendar.dayNumber}")
                     WagerCalendarStatus(calendar, format)

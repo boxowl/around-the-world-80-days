@@ -1,13 +1,17 @@
 package com.boxowl.aroundtheworld.expedition
 
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.boxowl.aroundtheworld.MainActivity
 import com.boxowl.aroundtheworld.expedition.credit.V2CreditRepository
+import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
@@ -59,6 +63,12 @@ class V2JourneyUiTest {
             var clickable = mapTab
             while (clickable != null && !clickable.isClickable) clickable = clickable.parent
             assertTrue("map tab missing", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            instrumentation.waitForIdleSync()
+            for (attempt in 0 until 30) {
+                val scrollable = findScrollable(instrumentation.uiAutomation.rootInActiveWindow) ?: break
+                if (!scrollable.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id)) break
+                instrumentation.waitForIdleSync()
+            }
             var descriptions = ""
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
@@ -100,6 +110,33 @@ class V2JourneyUiTest {
             assertTrue("browse changed stored credit", runBlocking {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
             })
+            var mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
+            assertTrue("start card detail missing: $mapText", "Выбрана остановка: Лондон · london#1" in mapText)
+            assertTrue("start arrival invented: $mapText", "Старт маршрута" in mapText)
+            val suezIndex = GlobeStopCardsV1.cards.indexOfFirst { it.occurrenceId == "suez#1" }
+            assertTrue("Suez card missing from route", suezIndex > 0)
+            for (index in 1..suezIndex) {
+                var nextStop = findText(instrumentation.uiAutomation.rootInActiveWindow, "Следующая остановка")
+                for (attempt in 0 until 10) {
+                    if (nextStop?.isVisibleToUser == true) break
+                    swipeUp(instrumentation)
+                    instrumentation.waitForIdleSync()
+                    nextStop = findText(instrumentation.uiAutomation.rootInActiveWindow, "Следующая остановка")
+                }
+                assertTrue("next stop not visible at $index", nextStop?.isVisibleToUser == true)
+                tapNode(instrumentation, nextStop!!)
+                val card = GlobeStopCardsV1.cards[index]
+                val selected = "Выбрана остановка: ${card.nameRu} · ${card.occurrenceId}"
+                for (attempt in 0 until 30) {
+                    instrumentation.waitForIdleSync()
+                    mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
+                    if (selected in mapText) break
+                    Thread.sleep(100)
+                }
+                assertTrue("selection $index missing: $mapText", selected in mapText)
+            }
+            assertTrue("Suez arrival missing: $mapText", "Глава 8 · Водный путь" in mapText)
+            assertTrue("unreached Suez was marked reached: $mapText", "Впереди" in mapText)
         } finally {
             activity.finish()
             runBlocking { database.v2Dao().endExpedition(seq, Instant.now().toString()) }
@@ -132,5 +169,44 @@ class V2JourneyUiTest {
         if (node.className?.toString() == target) return node
         for (i in 0 until node.childCount) findClass(node.getChild(i), target)?.let { return it }
         return null
+    }
+
+    private fun findScrollable(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.isScrollable) return node
+        for (i in 0 until node.childCount) findScrollable(node.getChild(i))?.let { return it }
+        return null
+    }
+
+    private fun swipeUp(instrumentation: android.app.Instrumentation) {
+        val metrics = instrumentation.targetContext.resources.displayMetrics
+        val x = metrics.widthPixels / 2f
+        val startY = metrics.heightPixels * 0.75f
+        val endY = metrics.heightPixels * 0.30f
+        val down = SystemClock.uptimeMillis()
+        for (step in 0..12) {
+            val action = when (step) {
+                0 -> MotionEvent.ACTION_DOWN
+                12 -> MotionEvent.ACTION_UP
+                else -> MotionEvent.ACTION_MOVE
+            }
+            val event = MotionEvent.obtain(down, down + step * 16L, action, x, startY + (endY - startY) * step / 12f, 0)
+            instrumentation.uiAutomation.injectInputEvent(event, true)
+            event.recycle()
+        }
+    }
+
+    private fun tapNode(instrumentation: android.app.Instrumentation, node: AccessibilityNodeInfo) {
+        val bounds = Rect()
+        node.getBoundsInScreen(bounds)
+        val down = SystemClock.uptimeMillis()
+        val x = bounds.centerX().toFloat()
+        val y = bounds.centerY().toFloat()
+        val press = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x, y, 0)
+        val release = MotionEvent.obtain(down, down + 80L, MotionEvent.ACTION_UP, x, y, 0)
+        instrumentation.uiAutomation.injectInputEvent(press, true)
+        instrumentation.uiAutomation.injectInputEvent(release, true)
+        press.recycle()
+        release.recycle()
     }
 }

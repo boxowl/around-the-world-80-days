@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
+import com.boxowl.aroundtheworld.expedition.globe.V2StopCardDetails
 import com.boxowl.aroundtheworld.expedition.globe.V2BrowsePosition
 import com.boxowl.aroundtheworld.expedition.globe.V2GlobeMap
 import com.boxowl.aroundtheworld.expedition.passport.StampId
@@ -73,6 +74,7 @@ internal fun V2JourneyScreen(
     }
     val row = snapshot.expedition
     var browseBookMeters by rememberSaveable(row.id) { mutableStateOf<Long?>(null) }
+    var selectedStopId by rememberSaveable(row.id) { mutableStateOf(GlobeStopCardsV1.cards.first().occurrenceId) }
     val confirmedBookMeters = snapshot.ledger.totalBookMeters
     LaunchedEffect(row.id, confirmedBookMeters) {
         browseBookMeters = V2BrowsePosition.squeeze(browseBookMeters, confirmedBookMeters)
@@ -142,9 +144,24 @@ internal fun V2JourneyScreen(
                         OutlinedButton(onClick = { browseBookMeters = null }) { Text("Вернуться к текущей") }
                     }
                     Text("Просмотр меняет только карту; сохранённый путь, штампы и открытые остановки не меняются.")
-                    GlobeStopCardsV1.cards.forEach { card ->
-                        val reached = GlobeStopCardsV1.reached(card, snapshot.ledger.totalBookMeters.toDouble())
-                        Text("${if (reached) "●" else "○"} ${card.nameRu} · ${km(card.thresholdBookKm)} книжных км")
+                    val selectedCard = GlobeStopCardsV1.cards.firstOrNull { it.occurrenceId == selectedStopId }
+                        ?: GlobeStopCardsV1.cards.first()
+                    val detail = V2StopCardDetails.of(selectedCard, confirmedBookMeters)
+                    Text("Выбрана остановка: ${detail.name} · ${detail.occurrenceId}", style = MaterialTheme.typography.titleMedium)
+                    Text("Глава ${detail.chapter} · ${detail.arrival}")
+                    Text("Порог: ≈${preciseBookKm(detail.thresholdBookKm)} книжных км")
+                    Text(if (detail.reached) "Достигнута" else "Впереди")
+                    val selectedIndex = GlobeStopCardsV1.cards.indexOf(selectedCard)
+                    Text("Остановка ${selectedIndex + 1} из ${GlobeStopCardsV1.cards.size}")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { selectedStopId = GlobeStopCardsV1.cards[selectedIndex - 1].occurrenceId },
+                            enabled = selectedIndex > 0,
+                        ) { Text("Предыдущая остановка") }
+                        OutlinedButton(
+                            onClick = { selectedStopId = GlobeStopCardsV1.cards[selectedIndex + 1].occurrenceId },
+                            enabled = selectedIndex < GlobeStopCardsV1.cards.lastIndex,
+                        ) { Text("Следующая остановка") }
                     }
                 }
                 "passport" -> {

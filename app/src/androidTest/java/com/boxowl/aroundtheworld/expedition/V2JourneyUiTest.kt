@@ -114,6 +114,7 @@ class V2JourneyUiTest {
             var mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
             assertTrue("start card detail missing: $mapText", "Выбрана остановка: Лондон · london#1" in mapText)
             assertTrue("start arrival invented: $mapText", "Старт маршрута" in mapText)
+            assertTrue("start narrative missing: $mapText", "Паспорт открыт. У вокзала начинается дорога вокруг света." in mapText)
             val suezIndex = GlobeStopCardsV1.cards.indexOfFirst { it.occurrenceId == "suez#1" }
             assertTrue("Suez card missing from route", suezIndex > 0)
             for (index in 1..suezIndex) {
@@ -138,6 +139,8 @@ class V2JourneyUiTest {
             }
             assertTrue("Suez arrival missing: $mapText", "Глава 8 · Водный путь" in mapText)
             assertTrue("unreached Suez was marked reached: $mapText", "Впереди" in mapText)
+            assertTrue("future Suez narrative exposed: $mapText", "Запись пока закрыта." in mapText)
+            assertTrue("future Suez text visible: $mapText", "Средиземное море осталось за кормой." !in mapText)
         } finally {
             activity.finish()
             runBlocking { database.v2Dao().endExpedition(seq, Instant.now().toString()) }

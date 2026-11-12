@@ -21,6 +21,12 @@ class V2MapNarrativeTest {
         }
         assertEquals("london#1", V2MapNarrative.notes.first().occurrenceId)
         assertEquals("london#2", V2MapNarrative.notes.last().occurrenceId)
+        StampId.entries.forEach { stamp ->
+            val occurrenceId = V2MapNarrative.occurrenceIdFor(stamp)
+            assertEquals(1, GlobeStopCardsV1.cards.count { it.occurrenceId == occurrenceId })
+        }
+        assertEquals("london#1", V2MapNarrative.occurrenceIdFor(StampId.LONDON_START))
+        assertEquals("london#2", V2MapNarrative.occurrenceIdFor(StampId.LONDON_FINISH))
     }
 
     @Test fun visibilityUsesPersistedStampEvenAfterDistanceRollback() {

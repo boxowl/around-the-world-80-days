@@ -20,6 +20,8 @@ object V2MapNarrative {
         Note(StampId.LONDON_FINISH, "london#2", "Кругосветная линия замкнулась в Лондоне. В паспорте собраны отметки всего пути."),
     )
 
+    fun occurrenceIdFor(stamp: StampId): String = notes.single { it.stamp == stamp }.occurrenceId
+
     fun forCard(card: GlobeStopCard, passport: PassportSnapshot): CardNote? =
         notes.firstOrNull { it.occurrenceId == card.occurrenceId }?.let { note ->
             CardNote(note.text, passport.granted.containsKey(note.stamp))

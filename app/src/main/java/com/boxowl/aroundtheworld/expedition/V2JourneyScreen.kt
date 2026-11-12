@@ -188,6 +188,13 @@ internal fun V2JourneyScreen(
                             "${if (granted) "●" else "○"} ${stampName(stamp)} — " +
                                 if (!granted) "впереди" else date?.let(format::format) ?: "дата неизвестна",
                         )
+                        OutlinedButton(
+                            modifier = Modifier.semantics { stateDescription = if (granted) "Штамп получен" else "Штамп впереди" },
+                            onClick = {
+                                selectedStopId = V2MapNarrative.occurrenceIdFor(stamp)
+                                page = "map"
+                            },
+                        ) { Text("На карте: ${stampName(stamp)}") }
                     }
                 }
                 else -> {

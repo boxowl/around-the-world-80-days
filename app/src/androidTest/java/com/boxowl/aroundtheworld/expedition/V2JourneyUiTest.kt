@@ -141,6 +141,67 @@ class V2JourneyUiTest {
             assertTrue("unreached Suez was marked reached: $mapText", "Впереди" in mapText)
             assertTrue("future Suez narrative exposed: $mapText", "Запись пока закрыта." in mapText)
             assertTrue("future Suez text visible: $mapText", "Средиземное море осталось за кормой." !in mapText)
+            val passportTab = findText(instrumentation.uiAutomation.rootInActiveWindow, "Паспорт")
+            assertTrue("passport tab missing", passportTab != null)
+            tapNode(instrumentation, passportTab!!)
+            instrumentation.waitForIdleSync()
+            for (attempt in 0 until 30) {
+                val scrollable = findScrollable(instrumentation.uiAutomation.rootInActiveWindow) ?: break
+                if (!scrollable.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id)) break
+                instrumentation.waitForIdleSync()
+            }
+            var suezLink = findText(instrumentation.uiAutomation.rootInActiveWindow, "На карте: Суэц")
+            for (attempt in 0 until 10) {
+                if (suezLink?.isVisibleToUser == true) break
+                swipeUp(instrumentation)
+                instrumentation.waitForIdleSync()
+                suezLink = findText(instrumentation.uiAutomation.rootInActiveWindow, "На карте: Суэц")
+            }
+            assertTrue("Suez passport link missing", suezLink?.isVisibleToUser == true)
+            clickable = suezLink
+            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+            assertTrue("Suez passport button missing", clickable != null)
+            val suezButton = clickable!!
+            assertTrue("passport stamp status inaccessible", suezButton.stateDescription?.toString() == "Штамп впереди")
+            val suezBounds = Rect()
+            suezButton.getBoundsInScreen(suezBounds)
+            assertTrue("Suez button click rejected: $suezBounds", suezButton.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Выбрана остановка: Суэц · suez#1" in mapText) break
+                Thread.sleep(100)
+            }
+            assertTrue("passport did not open Suez from $suezBounds: $mapText", "Выбрана остановка: Суэц · suez#1" in mapText)
+            assertTrue("passport opened future note: $mapText", "Запись пока закрыта." in mapText)
+            assertTrue("passport changed stored credit", runBlocking {
+                repository.loadActive()!!.ledger.totalBookMeters == 15_000L
+            })
+            val passportAgain = findText(instrumentation.uiAutomation.rootInActiveWindow, "Паспорт")
+            clickable = passportAgain
+            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+            assertTrue("passport return missing", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                if ("Паспорт экспедиции" in collectText(instrumentation.uiAutomation.rootInActiveWindow)) break
+                Thread.sleep(100)
+            }
+            for (attempt in 0 until 30) {
+                val scrollable = findScrollable(instrumentation.uiAutomation.rootInActiveWindow) ?: break
+                if (!scrollable.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id)) break
+                instrumentation.waitForIdleSync()
+            }
+            val londonLink = findText(instrumentation.uiAutomation.rootInActiveWindow, "На карте: Лондон · старт")
+            clickable = londonLink
+            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+            assertTrue("London passport link missing", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Выбрана остановка: Лондон · london#1" in mapText) break
+                Thread.sleep(100)
+            }
+            assertTrue("passport did not open start London: $mapText", "Выбрана остановка: Лондон · london#1" in mapText)
         } finally {
             activity.finish()
             runBlocking { database.v2Dao().endExpedition(seq, Instant.now().toString()) }

@@ -43,6 +43,7 @@ import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import com.boxowl.aroundtheworld.expedition.globe.V2CurrentTransport
+import com.boxowl.aroundtheworld.expedition.globe.V2MapNarrative
 import com.boxowl.aroundtheworld.expedition.globe.V2StopCardDetails
 import com.boxowl.aroundtheworld.expedition.globe.V2BrowsePosition
 import com.boxowl.aroundtheworld.expedition.globe.V2GlobeMap
@@ -157,6 +158,13 @@ internal fun V2JourneyScreen(
                     Text("Глава ${detail.chapter} · ${detail.arrival}")
                     Text("Порог: ≈${preciseBookKm(detail.thresholdBookKm)} книжных км")
                     Text(if (detail.reached) "Достигнута" else "Впереди")
+                    val note = V2MapNarrative.forCard(selectedCard, snapshot.passport)
+                    Text("Запись главы", style = MaterialTheme.typography.titleSmall)
+                    Text(when {
+                        note == null -> "Для этой остановки записи главы пока нет."
+                        note.opened -> note.text
+                        else -> "Запись пока закрыта."
+                    })
                     val selectedIndex = GlobeStopCardsV1.cards.indexOf(selectedCard)
                     Text("Остановка ${selectedIndex + 1} из ${GlobeStopCardsV1.cards.size}")
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

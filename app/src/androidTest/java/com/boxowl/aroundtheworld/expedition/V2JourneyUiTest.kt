@@ -202,6 +202,42 @@ class V2JourneyUiTest {
                 Thread.sleep(100)
             }
             assertTrue("passport did not open start London: $mapText", "Выбрана остановка: Лондон · london#1" in mapText)
+            var picker = findText(instrumentation.uiAutomation.rootInActiveWindow, "Выбрать остановку")
+            for (attempt in 0 until 10) {
+                if (picker?.isVisibleToUser == true) break
+                swipeUp(instrumentation)
+                instrumentation.waitForIdleSync()
+                picker = findText(instrumentation.uiAutomation.rootInActiveWindow, "Выбрать остановку")
+            }
+            assertTrue("direct stop picker missing", picker?.isVisibleToUser == true)
+            tapNode(instrumentation, picker!!)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                if (findText(instrumentation.uiAutomation.rootInActiveWindow, "Остановки маршрута") != null) break
+                Thread.sleep(100)
+            }
+            var suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц · suez#1")
+            for (attempt in 0 until 10) {
+                if (suezChoice?.isVisibleToUser == true) break
+                swipeUp(instrumentation)
+                instrumentation.waitForIdleSync()
+                suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц · suez#1")
+            }
+            assertTrue("direct Suez choice missing", suezChoice?.isVisibleToUser == true)
+            clickable = suezChoice
+            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+            assertTrue("direct Suez choice not clickable", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Выбрана остановка: Суэц · suez#1" in mapText) break
+                Thread.sleep(100)
+            }
+            assertTrue("direct selection did not open Suez: $mapText", "Выбрана остановка: Суэц · suez#1" in mapText)
+            assertTrue("direct selection exposed future note: $mapText", "Запись пока закрыта." in mapText)
+            assertTrue("direct selection changed stored credit", runBlocking {
+                repository.loadActive()!!.ledger.totalBookMeters == 15_000L
+            })
         } finally {
             activity.finish()
             runBlocking { database.v2Dao().endExpedition(seq, Instant.now().toString()) }

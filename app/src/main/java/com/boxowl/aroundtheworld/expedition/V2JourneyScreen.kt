@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -77,6 +80,7 @@ internal fun V2JourneyScreen(
     val row = snapshot.expedition
     var browseBookMeters by rememberSaveable(row.id) { mutableStateOf<Long?>(null) }
     var selectedStopId by rememberSaveable(row.id) { mutableStateOf(GlobeStopCardsV1.cards.first().occurrenceId) }
+    var showStopPicker by rememberSaveable(row.id) { mutableStateOf(false) }
     val confirmedBookMeters = snapshot.ledger.totalBookMeters
     LaunchedEffect(row.id, confirmedBookMeters) {
         browseBookMeters = V2BrowsePosition.squeeze(browseBookMeters, confirmedBookMeters)
@@ -167,6 +171,7 @@ internal fun V2JourneyScreen(
                     })
                     val selectedIndex = GlobeStopCardsV1.cards.indexOf(selectedCard)
                     Text("Остановка ${selectedIndex + 1} из ${GlobeStopCardsV1.cards.size}")
+                    OutlinedButton(onClick = { showStopPicker = true }) { Text("Выбрать остановку") }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { selectedStopId = GlobeStopCardsV1.cards[selectedIndex - 1].occurrenceId },
@@ -176,6 +181,23 @@ internal fun V2JourneyScreen(
                             onClick = { selectedStopId = GlobeStopCardsV1.cards[selectedIndex + 1].occurrenceId },
                             enabled = selectedIndex < GlobeStopCardsV1.cards.lastIndex,
                         ) { Text("Следующая остановка") }
+                    }
+                    if (showStopPicker) {
+                        AlertDialog(
+                            onDismissRequest = { showStopPicker = false },
+                            title = { Text("Остановки маршрута") },
+                            text = {
+                                LazyColumn(Modifier.heightIn(max = 400.dp)) {
+                                    items(GlobeStopCardsV1.cards, key = { it.occurrenceId }) { card ->
+                                        TextButton(onClick = {
+                                            selectedStopId = card.occurrenceId
+                                            showStopPicker = false
+                                        }) { Text("${card.nameRu} · ${card.occurrenceId}") }
+                                    }
+                                }
+                            },
+                            confirmButton = { TextButton(onClick = { showStopPicker = false }) { Text("Закрыть") } },
+                        )
                     }
                 }
                 "passport" -> {

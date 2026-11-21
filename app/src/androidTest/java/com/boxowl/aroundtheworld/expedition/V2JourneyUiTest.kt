@@ -7,13 +7,18 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.compose.ui.geometry.Offset
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.boxowl.aroundtheworld.MainActivity
 import com.boxowl.aroundtheworld.expedition.credit.V2CreditRepository
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
+import com.boxowl.aroundtheworld.expedition.globe.RoutePosition
+import com.boxowl.aroundtheworld.expedition.globe.V2ChapterMarkerHitTest
+import com.boxowl.aroundtheworld.expedition.globe.vecToLatLon
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.math.min
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -216,10 +221,13 @@ class V2JourneyUiTest {
                 if (findText(instrumentation.uiAutomation.rootInActiveWindow, "Остановки маршрута") != null) break
                 Thread.sleep(100)
             }
+            assertTrue("stop picker dialog did not open", findText(instrumentation.uiAutomation.rootInActiveWindow, "Остановки маршрута") != null)
             var suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц · suez#1")
             for (attempt in 0 until 10) {
                 if (suezChoice?.isVisibleToUser == true) break
-                swipeUp(instrumentation)
+                val scrolled = findScrollable(instrumentation.uiAutomation.rootInActiveWindow)
+                    ?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) == true
+                if (!scrolled) swipeUp(instrumentation)
                 instrumentation.waitForIdleSync()
                 suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц · suez#1")
             }
@@ -236,6 +244,48 @@ class V2JourneyUiTest {
             assertTrue("direct selection did not open Suez: $mapText", "Выбрана остановка: Суэц · suez#1" in mapText)
             assertTrue("direct selection exposed future note: $mapText", "Запись пока закрыта." in mapText)
             assertTrue("direct selection changed stored credit", runBlocking {
+                repository.loadActive()!!.ledger.totalBookMeters == 15_000L
+            })
+            for (attempt in 0 until 30) {
+                val scrollable = findScrollable(instrumentation.uiAutomation.rootInActiveWindow) ?: break
+                if (!scrollable.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id)) break
+                instrumentation.waitForIdleSync()
+            }
+            var globe = findDescriptionContaining(
+                instrumentation.uiAutomation.rootInActiveWindow,
+                "Глобус: подтверждено 15.000 книжных километров",
+            )
+            val fullGlobeHeight = (320f * context.resources.displayMetrics.density).toInt()
+            for (attempt in 0 until 10) {
+                val visibleBounds = Rect()
+                globe?.getBoundsInScreen(visibleBounds)
+                if (globe?.isVisibleToUser == true && visibleBounds.height() >= fullGlobeHeight - 2) break
+                swipeDown(instrumentation)
+                instrumentation.waitForIdleSync()
+                globe = findDescriptionContaining(instrumentation.uiAutomation.rootInActiveWindow,
+                    "Глобус: подтверждено 15.000 книжных километров")
+            }
+            val fullBounds = Rect()
+            globe?.getBoundsInScreen(fullBounds)
+            assertTrue("globe node not fully visible for marker tap: $fullBounds expected=$fullGlobeHeight", globe?.isVisibleToUser == true && fullBounds.height() >= fullGlobeHeight - 2)
+            val globeBounds = Rect().also(globe!!::getBoundsInScreen)
+            val (heroLat, heroLon) = vecToLatLon(RoutePosition.positionAt(15.0))
+            val londonMark = V2ChapterMarkerHitTest.targets(
+                Offset(globeBounds.width() / 2f, globeBounds.height() / 2f),
+                min(globeBounds.width(), globeBounds.height()) * 0.4f,
+                heroLat,
+                heroLon,
+            ).single { it.occurrenceId == "london#2" }
+            tapPoint(instrumentation, globeBounds.left + londonMark.center.x, globeBounds.top + londonMark.center.y)
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
+                if ("Выбрана остановка: Лондон · london#2" in mapText) break
+                swipeUp(instrumentation)
+                Thread.sleep(100)
+            }
+            assertTrue("globe marker did not select final London: bounds=$globeBounds mark=${londonMark.center} screen=${context.resources.displayMetrics.widthPixels}x${context.resources.displayMetrics.heightPixels} text=$mapText", "Выбрана остановка: Лондон · london#2" in mapText)
+            assertTrue("marker tap changed stored credit", runBlocking {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
             })
         } finally {
@@ -265,6 +315,13 @@ class V2JourneyUiTest {
         return null
     }
 
+    private fun findDescriptionContaining(node: AccessibilityNodeInfo?, target: String): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.contentDescription?.toString()?.contains(target) == true) return node
+        for (i in 0 until node.childCount) findDescriptionContaining(node.getChild(i), target)?.let { return it }
+        return null
+    }
+
     private fun findClass(node: AccessibilityNodeInfo?, target: String): AccessibilityNodeInfo? {
         if (node == null) return null
         if (node.className?.toString() == target) return node
@@ -279,11 +336,15 @@ class V2JourneyUiTest {
         return null
     }
 
-    private fun swipeUp(instrumentation: android.app.Instrumentation) {
+    private fun swipeUp(instrumentation: android.app.Instrumentation) = swipe(instrumentation, 0.75f, 0.30f)
+
+    private fun swipeDown(instrumentation: android.app.Instrumentation) = swipe(instrumentation, 0.30f, 0.75f)
+
+    private fun swipe(instrumentation: android.app.Instrumentation, startFraction: Float, endFraction: Float) {
         val metrics = instrumentation.targetContext.resources.displayMetrics
         val x = metrics.widthPixels / 2f
-        val startY = metrics.heightPixels * 0.75f
-        val endY = metrics.heightPixels * 0.30f
+        val startY = metrics.heightPixels * startFraction
+        val endY = metrics.heightPixels * endFraction
         val down = SystemClock.uptimeMillis()
         for (step in 0..12) {
             val action = when (step) {
@@ -300,9 +361,11 @@ class V2JourneyUiTest {
     private fun tapNode(instrumentation: android.app.Instrumentation, node: AccessibilityNodeInfo) {
         val bounds = Rect()
         node.getBoundsInScreen(bounds)
+        tapPoint(instrumentation, bounds.centerX().toFloat(), bounds.centerY().toFloat())
+    }
+
+    private fun tapPoint(instrumentation: android.app.Instrumentation, x: Float, y: Float) {
         val down = SystemClock.uptimeMillis()
-        val x = bounds.centerX().toFloat()
-        val y = bounds.centerY().toFloat()
         val press = MotionEvent.obtain(down, down, MotionEvent.ACTION_DOWN, x, y, 0)
         val release = MotionEvent.obtain(down, down + 80L, MotionEvent.ACTION_UP, x, y, 0)
         instrumentation.uiAutomation.injectInputEvent(press, true)

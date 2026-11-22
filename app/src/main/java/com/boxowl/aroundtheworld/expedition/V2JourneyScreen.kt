@@ -133,7 +133,9 @@ internal fun V2JourneyScreen(
                 }
                 "map" -> {
                     Text("Карта остановок", style = MaterialTheme.typography.headlineMedium)
-                    V2GlobeMap(displayBookMeters, V2BrowsePosition.isBrowsing(browseBookMeters, confirmedBookMeters))
+                    V2GlobeMap(displayBookMeters, V2BrowsePosition.isBrowsing(browseBookMeters, confirmedBookMeters)) {
+                        selectedStopId = it
+                    }
                     Text(
                         if (V2BrowsePosition.isBrowsing(browseBookMeters, confirmedBookMeters))
                             "Просмотр прошлого: ${preciseBookKm(displayBookMeters / 1000.0)} книжных км из подтверждённых ${preciseBookKm(confirmedBookMeters / 1000.0)} км."

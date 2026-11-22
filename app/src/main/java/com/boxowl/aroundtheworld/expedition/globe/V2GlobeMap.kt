@@ -1,6 +1,7 @@
 package com.boxowl.aroundtheworld.expedition.globe
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -9,13 +10,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -42,7 +43,7 @@ private sealed interface CoastState {
 
 /** The user map derives its position exclusively from persisted v2 totals. */
 @Composable
-fun V2GlobeMap(displayBookMeters: Long, browsingPast: Boolean) {
+fun V2GlobeMap(displayBookMeters: Long, browsingPast: Boolean, onSelectStop: (String) -> Unit) {
     val context = LocalContext.current
     val coastState = produceState<CoastState>(CoastState.Loading, context) {
         value = withContext(Dispatchers.IO) {
@@ -73,7 +74,15 @@ fun V2GlobeMap(displayBookMeters: Long, browsingPast: Boolean) {
                 val layout = remember(scene, width, height, lat, lon) {
                     scene.layout(width, height, lat, lon, 1.0f)
                 }
-                Canvas(Modifier.fillMaxWidth().height(320.dp).semantics {
+                val chapterTargets = remember(layout, lat, lon) {
+                    V2ChapterMarkerHitTest.targets(layout.center, layout.radius, lat, lon)
+                }
+                Canvas(Modifier.fillMaxWidth().height(320.dp).pointerInput(chapterTargets, onSelectStop) {
+                    val touchRadius = 24.dp.toPx()
+                    detectTapGestures { tap ->
+                        V2ChapterMarkerHitTest.hit(chapterTargets, tap, touchRadius)?.let(onSelectStop)
+                    }
+                }.semantics {
                     contentDescription = if (browsingPast)
                         "Глобус: просмотр прошлого ${String.format(Locale.US, "%.3f", bookKm)} книжных километров; положение героя на маршруте"
                     else "Глобус: подтверждено ${String.format(Locale.US, "%.3f", bookKm)} книжных километров; положение героя на маршруте"
@@ -95,16 +104,11 @@ fun V2GlobeMap(displayBookMeters: Long, browsingPast: Boolean) {
                     layout.pastRoute.forEach { (from, to, mode) ->
                         drawLine(transportColor(mode), from, to, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
                     }
-                    val frame = GlobeFrame(lat, lon)
-                    RoutePosition.chapterMarks.forEach { mark ->
-                        if (frame.isVisible(mark.pos)) {
-                            val p = frame.project(mark.pos)
-                            val center = Offset(c.x + (p.x * r).toFloat(), c.y - (p.y * r).toFloat())
-                            drawCircle(if (bookKm >= mark.bookKm) Color(0xFFD9A441) else Color.White,
-                                radius = 4.dp.toPx(), center = center)
-                            drawCircle(coast, radius = 4.dp.toPx(), center = center,
-                                style = Stroke(width = 1.dp.toPx()))
-                        }
+                    chapterTargets.forEach { target ->
+                        drawCircle(if (bookKm >= target.reachedBookKm) Color(0xFFD9A441) else Color.White,
+                            radius = 4.dp.toPx(), center = target.center)
+                        drawCircle(coast, radius = 4.dp.toPx(), center = target.center,
+                            style = Stroke(width = 1.dp.toPx()))
                     }
                     layout.hero?.let { point ->
                         drawCircle(Color.White, radius = 7.dp.toPx(), center = point)

@@ -243,6 +243,7 @@ internal fun V2JourneyScreen(
                     }
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
                     ReminderSettingsControl()
+                    Text("Прогресс, штампы и дневник хранятся только на этом телефоне. Приложение пока не переносит их на новый телефон и не создаёт резервную копию. При удалении приложения или очистке его данных они будут утрачены; шаги в Health Connect не восстановят их автоматически.")
                     OutlinedButton(onClick = onRestart) { Text("Начать новую экспедицию") }
                     Text("Прежние экспедиции и v1-данные сохраняются. Экран истории появится позднее.")
                     LocalDataResetControl()

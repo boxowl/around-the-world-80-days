@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -321,8 +323,8 @@ internal fun V2StartDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 JourneyMode.entries.forEach { item ->
-                    Row {
-                        RadioButton(selected = mode == item, onClick = { mode = item })
+                    Row(Modifier.fillMaxWidth().selectable(selected = mode == item, onClick = { mode = item }, role = Role.RadioButton)) {
+                        RadioButton(selected = mode == item, onClick = null)
                         Text(if (item == JourneyMode.WAGER) "Пари на 80 дней" else "Свободное путешествие")
                     }
                 }
@@ -344,11 +346,15 @@ internal fun V2StartDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { strideMillimeters?.let { onConfirm(mode, it) } }, enabled = strideMillimeters != null) {
-                Text("Подтвердить старт")
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { strideMillimeters?.let { onConfirm(mode, it) } },
+                    enabled = strideMillimeters != null,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Подтвердить старт") }
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Отмена") }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
     )
 }
 

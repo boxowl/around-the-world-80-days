@@ -38,6 +38,7 @@ import com.boxowl.aroundtheworld.ExpeditionText
 import com.boxowl.aroundtheworld.PermissionsRationaleActivity
 import com.boxowl.aroundtheworld.health.DiagnosticsPanel
 import com.boxowl.aroundtheworld.health.HealthConnectStepsGateway
+import com.boxowl.aroundtheworld.expedition.reminder.ReminderSettingsControl
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
@@ -278,6 +279,7 @@ private fun ActiveExpedition(
                         request = requestPermissions, open = open, retry = onCheckAccess)
                     if (current.syncing) Text("Сверяем дневные шаги…")
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
+                    ReminderSettingsControl()
                     TextButton(onClick = onV2Start) { Text("Начать кругосветную экспедицию v2") }
                     HorizontalDivider()
                     DiagnosticsPanel()

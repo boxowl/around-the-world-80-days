@@ -243,6 +243,7 @@ internal fun V2JourneyScreen(
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
                     OutlinedButton(onClick = onRestart) { Text("Начать новую экспедицию") }
                     Text("Прежние экспедиции и v1-данные сохраняются. Экран истории появится позднее.")
+                    LocalDataResetControl()
                 }
             }
         }

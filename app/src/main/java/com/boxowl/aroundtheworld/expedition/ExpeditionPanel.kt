@@ -281,6 +281,7 @@ private fun ActiveExpedition(
                     TextButton(onClick = onV2Start) { Text("Начать кругосветную экспедицию v2") }
                     HorizontalDivider()
                     DiagnosticsPanel()
+                    LocalDataResetControl()
                 }
             }
             if (page == "journey" && shownEvent != null) {

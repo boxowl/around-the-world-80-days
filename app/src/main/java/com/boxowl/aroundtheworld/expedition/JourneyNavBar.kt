@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,11 +42,19 @@ internal fun JourneyNavBar(
     hasUnviewedEvents: Boolean,
     onSelect: (String) -> Unit,
 ) {
+    val largeText = LocalDensity.current.fontScale >= 1.5f
     Column {
         HorizontalDivider(thickness = 1.dp, color = Color.White.copy(alpha = 0.08f))
         NavigationBar(containerColor = ExpeditionBackground, tonalElevation = 0.dp) {
             journeyNavItems.forEach { item ->
                 NavigationBarItem(
+                    modifier = if (largeText && item.id in setOf("diary", "health")) {
+                        Modifier.semantics {
+                            contentDescription = if (item.id == "diary" && hasUnviewedEvents) {
+                                "Дневник, есть непрочитанные записи"
+                            } else item.label
+                        }
+                    } else Modifier,
                     selected = page == item.id,
                     onClick = { onSelect(item.id) },
                     icon = {
@@ -65,7 +74,14 @@ internal fun JourneyNavBar(
                             Icon(item.icon, contentDescription = null)
                         }
                     },
-                    label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    label = {
+                        val visibleLabel = if (largeText) when (item.id) {
+                            "diary" -> "Днев."
+                            "health" -> "Опции"
+                            else -> item.label
+                        } else item.label
+                        Text(visibleLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = ExpeditionGold,
                         selectedTextColor = ExpeditionGold,

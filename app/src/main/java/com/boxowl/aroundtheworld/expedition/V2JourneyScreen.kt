@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -250,14 +251,22 @@ internal fun V2JourneyScreen(
                 }
             }
         }
+        val largeText = LocalDensity.current.fontScale >= 1.5f
         NavigationBar {
             listOf("path" to "Путь", "map" to "Карта", "passport" to "Паспорт", "settings" to "Настройки")
                 .forEach { (id, label) ->
                     NavigationBarItem(
+                        modifier = if (largeText && id in setOf("passport", "settings")) {
+                            Modifier.semantics { contentDescription = label }
+                        } else Modifier,
                         selected = page == id,
                         onClick = { page = id },
                         icon = { Text(if (page == id) "●" else "○") },
-                        label = { Text(label) },
+                        label = { Text(if (largeText) when (id) {
+                            "passport" -> "Пасп."
+                            "settings" -> "Опции"
+                            else -> label
+                        } else label) },
                     )
                 }
         }

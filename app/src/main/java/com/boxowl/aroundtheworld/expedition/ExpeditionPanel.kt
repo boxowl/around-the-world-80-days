@@ -280,6 +280,7 @@ private fun ActiveExpedition(
                     if (current.syncing) Text("Сверяем дневные шаги…")
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
                     ReminderSettingsControl()
+                    Text("Прогресс и дневник хранятся только на этом телефоне. Приложение пока не переносит их на новый телефон и не создаёт резервную копию. При удалении приложения или очистке его данных они будут утрачены; шаги в Health Connect не восстановят дневник автоматически.")
                     TextButton(onClick = onV2Start) { Text("Начать кругосветную экспедицию v2") }
                     HorizontalDivider()
                     DiagnosticsPanel()

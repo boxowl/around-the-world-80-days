@@ -46,6 +46,7 @@ import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import com.boxowl.aroundtheworld.expedition.globe.V2CurrentTransport
+import com.boxowl.aroundtheworld.expedition.path.V2CompanionRoster
 import com.boxowl.aroundtheworld.expedition.globe.V2MapNarrative
 import com.boxowl.aroundtheworld.expedition.globe.V2StopCardDetails
 import com.boxowl.aroundtheworld.expedition.globe.V2BrowsePosition
@@ -124,6 +125,7 @@ internal fun V2JourneyScreen(
                         if (travel.completed) "Маршрут завершён · ${travel.transport}: ${travel.from} → ${travel.to}"
                         else "Текущий транспорт: ${travel.transport} · ${travel.from} → ${travel.to} · глава ${travel.chapter}",
                     )
+                    Text("Спутники: ${V2CompanionRoster.label(bookKm)}")
                     Text("Шаги сегодня: ${todaySteps?.toString() ?: "нет данных"}")
                     Text("Календарный день: ${calendar.dayNumber}")
                     WagerCalendarStatus(calendar, format)

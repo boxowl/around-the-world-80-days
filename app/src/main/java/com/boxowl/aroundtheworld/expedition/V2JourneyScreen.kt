@@ -47,6 +47,7 @@ import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import com.boxowl.aroundtheworld.expedition.globe.V2CurrentTransport
 import com.boxowl.aroundtheworld.expedition.path.V2CompanionRoster
+import com.boxowl.aroundtheworld.expedition.reminder.ReminderSettingsControl
 import com.boxowl.aroundtheworld.expedition.globe.V2MapNarrative
 import com.boxowl.aroundtheworld.expedition.globe.V2StopCardDetails
 import com.boxowl.aroundtheworld.expedition.globe.V2BrowsePosition
@@ -241,6 +242,7 @@ internal fun V2JourneyScreen(
                         }
                     }
                     OutlinedButton(onClick = onRefresh, enabled = !current.syncing) { Text("Сверить шаги") }
+                    ReminderSettingsControl()
                     OutlinedButton(onClick = onRestart) { Text("Начать новую экспедицию") }
                     Text("Прежние экспедиции и v1-данные сохраняются. Экран истории появится позднее.")
                     LocalDataResetControl()

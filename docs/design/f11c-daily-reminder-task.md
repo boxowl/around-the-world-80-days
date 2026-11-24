@@ -1,0 +1,16 @@
+# F11c — ежедневное напоминание о прогулке
+
+- Цель: реальная локальная доставка необязательного напоминания и управление им из v1/v2 настроек.
+- Ветка/worktree: `feature/f11c-daily-reminder`, `/private/tmp/mobile-f11c-daily-reminder`.
+- Границы: `AndroidManifest.xml`, новый пакет `expedition/reminder/`, `ExpeditionPanel.kt`, `V2JourneyScreen.kt`, JVM и emulator instrumentation tests, этот task doc и `TODO.md` при передаче. Не трогать Room, F01, кредит, Health Connect, маршрут и художественные сцены.
+- Продуктовый контракт: по умолчанию выключено; после явного включения одно тихое напоминание в день **около 19:00 местного времени устройства**. Точное время не обещать: `AlarmManager.setAndAllowWhileIdle` — неточный будильник, системная задержка возможна. Сообщение не содержит шагов/медицинских данных. Выключение отменяет запланированный будильник; настройка хранится локально и исчезает при F11b сбросе. После reboot/package replace/timezone change при включённой настройке планировать следующий местный день заново. Нет фонового чтения HC.
+- Разрешения: Android 13+ запрашивать `POST_NOTIFICATIONS` только при включении; при отказе не включать. Создать канал Android 8+, показывать системную блокировку в UI. `RECEIVE_BOOT_COMPLETED` нужен для восстановления после перезапуска. Exact-alarm permission не запрашивать. См. [Android alarms](https://developer.android.com/develop/background-work/services/alarms), [notification permission](https://developer.android.com/develop/ui/compose/notifications/notification-permission), [channels](https://developer.android.com/develop/ui/compose/notifications/channels).
+- Готово, когда: pure расчёт следующего 19:00 проходит тесты границы дня/DST; включение/выключение и реальная публикация notification проверены на Android 16 эмуляторе с явно тестовым триггером; включение после отказа в разрешении не даёт ложный статус; reboot reschedule и F11b сброс не оставляют доставку; сборка/unit/lint/instrumentation/CI зелёные; независимое строгое ревью интеграции без блокеров.
+- Цикл: модель и platform контракт → планировщик, receivers, канал → UI → тесты/эмулятор → строгое ревью → PR/CI → слияние.
+
+## Проверка 2026-11-24
+
+- Независимое строгое read-only ревью интеграции не нашло блокеров. Проверены разрешения, одноразовый неточный alarm, отмена, отсутствие фонового Health Connect и связь с F11b.
+- `assembleDebug`, `testDebugUnitTest`, `lintDebug`, `compileReleaseKotlin` прошли; `connectedDebugAndroidTest` на Android 16 эмуляторе: 21 тест, 0 ошибок/пропусков. Тестовый вызов `onAlarm` опубликовал настоящее системное уведомление; его время было введено тестом, не реальной прогулкой.
+- Вручную: отказ Android в `POST_NOTIFICATIONS` оставил настройку выключенной; разрешение включило её и создало `RTC_WAKEUP` на местные 19:00 с часовым окном; после reboot alarm восстановился; выключение отменило его. Полный сброс F11b удалил настройку и alarm. Контроль v2 по умолчанию выключен и включился после системного разрешения.
+- Смена часового пояса и `MY_PACKAGE_REPLACED` не воспроизводились вручную; расчёт границы дня/DST проверен JVM-тестом, обработчик системных broadcast просмотрен. Физическая приёмка шагов P02/F02/Q01 по-прежнему требует телефона.

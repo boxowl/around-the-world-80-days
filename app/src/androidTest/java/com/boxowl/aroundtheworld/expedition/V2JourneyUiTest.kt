@@ -62,6 +62,7 @@ class V2JourneyUiTest {
             assertTrue("estimated real distance missing: $visible", "Расчётное реальное расстояние: 0.8 км" in visible)
             assertTrue("book distance missing: $visible", "Книжный прогресс: 15.0" in visible)
             assertTrue("current transport missing: $visible", "Текущий транспорт: Поезд · Лондон → Дувр · глава 3" in visible)
+            assertTrue("confirmed companions missing: $visible", "Спутники: Фогг, Паспарту" in visible)
             assertTrue("passport navigation missing: $visible", "Паспорт" in visible)
             assertTrue("free journey should have no wager deadline: $visible", "Свободное путешествие без срока." in visible)
             assertTrue("stored v1 was changed", runBlocking { legacy.load()!!.startedAt == oldV1.startedAt })
@@ -182,10 +183,18 @@ class V2JourneyUiTest {
             assertTrue("passport changed stored credit", runBlocking {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
             })
-            val passportAgain = findText(instrumentation.uiAutomation.rootInActiveWindow, "Паспорт")
-            clickable = passportAgain
-            while (clickable != null && !clickable.isClickable) clickable = clickable.parent
-            assertTrue("passport return missing", clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
+            var passportReturned = false
+            for (attempt in 0 until 30) {
+                instrumentation.waitForIdleSync()
+                clickable = findText(instrumentation.uiAutomation.rootInActiveWindow, "Паспорт")
+                while (clickable != null && !clickable.isClickable) clickable = clickable.parent
+                if (clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) {
+                    passportReturned = true
+                    break
+                }
+                Thread.sleep(100)
+            }
+            assertTrue("passport return missing", passportReturned)
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
                 if ("Паспорт экспедиции" in collectText(instrumentation.uiAutomation.rootInActiveWindow)) break

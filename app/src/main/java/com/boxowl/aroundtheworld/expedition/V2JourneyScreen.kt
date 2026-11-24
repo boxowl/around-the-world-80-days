@@ -45,6 +45,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boxowl.aroundtheworld.expedition.credit.V2SyncResult
 import com.boxowl.aroundtheworld.expedition.credit.V2WagerCalendar
+import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCard
 import com.boxowl.aroundtheworld.expedition.globe.GlobeStopCardsV1
 import com.boxowl.aroundtheworld.expedition.globe.V2CurrentTransport
 import com.boxowl.aroundtheworld.expedition.path.V2CompanionRoster
@@ -164,7 +165,7 @@ internal fun V2JourneyScreen(
                     val selectedCard = GlobeStopCardsV1.cards.firstOrNull { it.occurrenceId == selectedStopId }
                         ?: GlobeStopCardsV1.cards.first()
                     val detail = V2StopCardDetails.of(selectedCard, confirmedBookMeters)
-                    Text("Выбрана остановка: ${detail.name} · ${detail.occurrenceId}", style = MaterialTheme.typography.titleMedium)
+                    Text("Выбрана остановка: ${selectedCard.mapLabel()}", style = MaterialTheme.typography.titleMedium)
                     Text("Глава ${detail.chapter} · ${detail.arrival}")
                     Text("Порог: ≈${preciseBookKm(detail.thresholdBookKm)} книжных км")
                     Text(if (detail.reached) "Достигнута" else "Впереди")
@@ -198,7 +199,7 @@ internal fun V2JourneyScreen(
                                         TextButton(onClick = {
                                             selectedStopId = card.occurrenceId
                                             showStopPicker = false
-                                        }) { Text("${card.nameRu} · ${card.occurrenceId}") }
+                                        }) { Text(card.mapLabel()) }
                                     }
                                 }
                             },
@@ -353,6 +354,12 @@ internal fun V2StartDialog(
 
 private fun km(value: Double): String = String.format(Locale.US, "%.1f", value)
 private fun preciseBookKm(value: Double): String = String.format(Locale.US, "%.3f", value)
+
+private fun GlobeStopCard.mapLabel(): String = when (occurrenceId) {
+    "london#1" -> "$nameRu · старт"
+    "london#2" -> "$nameRu · финиш"
+    else -> nameRu
+}
 
 private fun stampName(stamp: StampId): String = when (stamp) {
     StampId.LONDON_START -> "Лондон · старт"

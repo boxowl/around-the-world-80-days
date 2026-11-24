@@ -118,7 +118,7 @@ class V2JourneyUiTest {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
             })
             var mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
-            assertTrue("start card detail missing: $mapText", "Выбрана остановка: Лондон · london#1" in mapText)
+            assertTrue("start card detail missing: $mapText", "Выбрана остановка: Лондон · старт" in mapText)
             assertTrue("start arrival invented: $mapText", "Старт маршрута" in mapText)
             assertTrue("start narrative missing: $mapText", "Паспорт открыт. У вокзала начинается дорога вокруг света." in mapText)
             val suezIndex = GlobeStopCardsV1.cards.indexOfFirst { it.occurrenceId == "suez#1" }
@@ -134,7 +134,7 @@ class V2JourneyUiTest {
                 assertTrue("next stop not visible at $index", nextStop?.isVisibleToUser == true)
                 tapNode(instrumentation, nextStop!!)
                 val card = GlobeStopCardsV1.cards[index]
-                val selected = "Выбрана остановка: ${card.nameRu} · ${card.occurrenceId}"
+                val selected = "Выбрана остановка: ${card.nameRu}"
                 for (attempt in 0 until 30) {
                     instrumentation.waitForIdleSync()
                     mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
@@ -175,10 +175,10 @@ class V2JourneyUiTest {
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
                 mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
-                if ("Выбрана остановка: Суэц · suez#1" in mapText) break
+                if ("Выбрана остановка: Суэц" in mapText) break
                 Thread.sleep(100)
             }
-            assertTrue("passport did not open Suez from $suezBounds: $mapText", "Выбрана остановка: Суэц · suez#1" in mapText)
+            assertTrue("passport did not open Suez from $suezBounds: $mapText", "Выбрана остановка: Суэц" in mapText)
             assertTrue("passport opened future note: $mapText", "Запись пока закрыта." in mapText)
             assertTrue("passport changed stored credit", runBlocking {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
@@ -212,10 +212,10 @@ class V2JourneyUiTest {
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
                 mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
-                if ("Выбрана остановка: Лондон · london#1" in mapText) break
+                if ("Выбрана остановка: Лондон · старт" in mapText) break
                 Thread.sleep(100)
             }
-            assertTrue("passport did not open start London: $mapText", "Выбрана остановка: Лондон · london#1" in mapText)
+            assertTrue("passport did not open start London: $mapText", "Выбрана остановка: Лондон · старт" in mapText)
             var picker = findText(instrumentation.uiAutomation.rootInActiveWindow, "Выбрать остановку")
             for (attempt in 0 until 10) {
                 if (picker?.isVisibleToUser == true) break
@@ -231,14 +231,14 @@ class V2JourneyUiTest {
                 Thread.sleep(100)
             }
             assertTrue("stop picker dialog did not open", findText(instrumentation.uiAutomation.rootInActiveWindow, "Остановки маршрута") != null)
-            var suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц · suez#1")
+            var suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц")
             for (attempt in 0 until 10) {
                 if (suezChoice?.isVisibleToUser == true) break
                 val scrolled = findScrollable(instrumentation.uiAutomation.rootInActiveWindow)
                     ?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) == true
                 if (!scrolled) swipeUp(instrumentation)
                 instrumentation.waitForIdleSync()
-                suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц · suez#1")
+                suezChoice = findText(instrumentation.uiAutomation.rootInActiveWindow, "Суэц")
             }
             assertTrue("direct Suez choice missing", suezChoice?.isVisibleToUser == true)
             clickable = suezChoice
@@ -247,10 +247,10 @@ class V2JourneyUiTest {
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
                 mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
-                if ("Выбрана остановка: Суэц · suez#1" in mapText) break
+                if ("Выбрана остановка: Суэц" in mapText) break
                 Thread.sleep(100)
             }
-            assertTrue("direct selection did not open Suez: $mapText", "Выбрана остановка: Суэц · suez#1" in mapText)
+            assertTrue("direct selection did not open Suez: $mapText", "Выбрана остановка: Суэц" in mapText)
             assertTrue("direct selection exposed future note: $mapText", "Запись пока закрыта." in mapText)
             assertTrue("direct selection changed stored credit", runBlocking {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
@@ -289,11 +289,11 @@ class V2JourneyUiTest {
             for (attempt in 0 until 30) {
                 instrumentation.waitForIdleSync()
                 mapText = collectText(instrumentation.uiAutomation.rootInActiveWindow)
-                if ("Выбрана остановка: Лондон · london#2" in mapText) break
+                if ("Выбрана остановка: Лондон · финиш" in mapText) break
                 swipeUp(instrumentation)
                 Thread.sleep(100)
             }
-            assertTrue("globe marker did not select final London: bounds=$globeBounds mark=${londonMark.center} screen=${context.resources.displayMetrics.widthPixels}x${context.resources.displayMetrics.heightPixels} text=$mapText", "Выбрана остановка: Лондон · london#2" in mapText)
+            assertTrue("globe marker did not select final London: bounds=$globeBounds mark=${londonMark.center} screen=${context.resources.displayMetrics.widthPixels}x${context.resources.displayMetrics.heightPixels} text=$mapText", "Выбрана остановка: Лондон · финиш" in mapText)
             assertTrue("marker tap changed stored credit", runBlocking {
                 repository.loadActive()!!.ledger.totalBookMeters == 15_000L
             })

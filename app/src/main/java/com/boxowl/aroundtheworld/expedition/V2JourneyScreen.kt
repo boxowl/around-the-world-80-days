@@ -229,6 +229,10 @@ internal fun V2JourneyScreen(
                     Text("Старт: ${format.format(Instant.parse(row.startedAt))} · пояс ${row.zone}")
                     WagerCalendarStatus(calendar, format)
                     Text("Длина шага: ${String.format(Locale.US, "%.1f", row.strideMillimeters / 10.0)} см (зафиксирована)")
+                    Text("Источник шагов: общий итог Steps в Health Connect. Состав записей и приоритет устройств определяет Health Connect.")
+                    Text("Браслет учитывается, только если его приложение записывает шаги в Health Connect; прямого подключения к браслету нет.")
+                    Text("Расчётное реальное расстояние: дневные шаги × сохранённая длина шага, с округлением вниз до целого метра за день. Книжный путь = сумма расчётных метров × 20. GPS и Distance не используются.")
+                    Text("Повторная сверка может исправить итоги прошлых дней.")
                     row.lastReadAt?.let { Text("Последняя успешная сверка: ${format.format(Instant.parse(it))}") }
                     SyncStatus(sync, current.syncing)
                     if (sync == V2SyncResult.PermissionRequired) {
